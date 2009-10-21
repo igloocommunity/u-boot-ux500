@@ -144,6 +144,11 @@ int serial_init (void)
 	IO_WRITE (port[CONSOLE_PORT] + UART_PL011_LCRH,
 		  (UART_PL011_LCRH_WLEN_8 | UART_PL011_LCRH_FEN));
 
+#ifdef CONFIG_U8500
+	/* program receive line control register */
+	IO_WRITE(port[CONSOLE_PORT] + 0x1C, 0x70);
+#endif
+	
 	/*
 	 ** Finally, enable the UART
 	 */

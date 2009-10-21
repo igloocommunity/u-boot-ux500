@@ -3127,6 +3127,24 @@ omap3_zoom1_config :	unconfig
 omap3_zoom2_config :	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm_cortexa8 zoom2 logicpd omap3
 
+u8500_def_config \
+u8500_noconsole_config \
+u8500_auto_config: unconfig
+	@mkdir -p $(obj)include
+	@ > $(obj)include/config.h
+	@if [ "$(findstring _def, $@)" ] ; then \
+		echo "#ifndef  CONFIG_SKIP_LOWLEVEL_INIT " >> $(obj)include/config.h ; \
+                echo "#define  CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
+                echo "#endif"  >> $(obj)include/config.h ; \
+	elif [ "$(findstring _noconsole, $@)" ] ; then \
+		echo "Configuring for no console ..." ; \
+                echo "#ifndef CONFIG_SKIP_LOWLEVEL_INIT"  >> $(obj)include/config.h ; \
+                echo "#define CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
+                echo "#endif"  >> $(obj)include/config.h ; \
+                echo "#define CONFIG_SILENT_CONSOLE 1" >>  $(obj)include/config.h ; \
+	fi;
+	@$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st stw8500
+
 #########################################################################
 ## XScale Systems
 #########################################################################

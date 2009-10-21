@@ -39,6 +39,7 @@
 /LOG
 /errlog
 /reloc_off
+build
 
 # stgit generated dirs
 patches-*
