@@ -404,9 +404,21 @@ LIST_85xx="		\
 	P2020DS		\
 	P2020DS_36BIT	\
 	P1011RDB	\
+	P1011RDB_NAND	\
+	P1011RDB_SDCARD	\
+	P1011RDB_SPIFLASH	\
 	P1020RDB	\
+	P1020RDB_NAND	\
+	P1020RDB_SDCARD	\
+	P1020RDB_SPIFLASH	\
 	P2010RDB	\
+	P2010RDB_NAND	\
+	P2010RDB_SDCARD	\
+	P2010RDB_SPIFLASH	\
 	P2020RDB	\
+	P2020RDB_NAND	\
+	P2020RDB_SDCARD	\
+	P2020RDB_SPIFLASH	\
 	PM854		\
 	PM856		\
 	sbc8540		\
@@ -549,6 +561,7 @@ LIST_ARM9="			\
 	omap1610inn		\
 	omap5912osk		\
 	omap730p2		\
+	openrd_base		\
 	rd6281a			\
 	sbc2410x		\
 	scb9328			\
@@ -618,11 +631,14 @@ LIST_at91="			\
 	at91sam9260ek		\
 	at91sam9261ek		\
 	at91sam9263ek		\
-	at91sam9g10ek	\
+	at91sam9g10ek		\
 	at91sam9g20ek		\
 	at91sam9m10g45ek	\
 	at91sam9rlek		\
 	cmc_pu2			\
+	CPUAT91			\
+	CPU9260			\
+	CPU9G20			\
 	csb637			\
 	kb9202			\
 	meesc			\

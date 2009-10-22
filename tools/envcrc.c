@@ -21,6 +21,7 @@
  * MA 02111-1307 USA
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -50,10 +51,6 @@
 # if defined(CONFIG_ENV_ADDR_REDUND) && !defined(CONFIG_ENV_SIZE_REDUND)
 #  define CONFIG_ENV_SIZE_REDUND	CONFIG_ENV_SIZE
 # endif
-# if (CONFIG_ENV_ADDR >= CONFIG_SYS_MONITOR_BASE) && \
-     ((CONFIG_ENV_ADDR + CONFIG_ENV_SIZE) <= (CONFIG_SYS_MONITOR_BASE + CONFIG_SYS_MONITOR_LEN))
-#  define ENV_IS_EMBEDDED	1
-# endif
 # if defined(CONFIG_ENV_ADDR_REDUND) || defined(CONFIG_ENV_OFFSET_REDUND)
 #  define CONFIG_SYS_REDUNDAND_ENVIRONMENT	1
 # endif
@@ -70,14 +67,11 @@
 
 extern uint32_t crc32 (uint32_t, const unsigned char *, unsigned int);
 
-#ifdef	ENV_IS_EMBEDDED
 extern unsigned int env_size;
 extern unsigned char environment;
-#endif	/* ENV_IS_EMBEDDED */
 
 int main (int argc, char **argv)
 {
-#ifdef	ENV_IS_EMBEDDED
 	unsigned char pad = 0x00;
 	uint32_t crc;
 	unsigned char *envptr = &environment,
@@ -121,7 +115,8 @@ int main (int argc, char **argv)
 			}
 			for (i = start; i != end; i += step)
 				printf("%c", (crc & (0xFF << (i * 8))) >> (i * 8));
-			fwrite(dataptr, 1, datasize, stdout);
+			if (fwrite(dataptr, 1, datasize, stdout) != datasize)
+				fprintf(stderr, "fwrite() failed: %s\n", strerror(errno));
 		} else {
 			printf("CRC32 from offset %08X to %08X of environment = %08X\n",
 				(unsigned int) (dataptr - envptr),
@@ -131,8 +126,6 @@ int main (int argc, char **argv)
 	} else {
 		printf ("0x%08X\n", crc);
 	}
-#else
-	printf ("0\n");
-#endif
+
 	return EXIT_SUCCESS;
 }

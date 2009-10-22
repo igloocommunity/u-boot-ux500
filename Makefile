@@ -501,6 +501,9 @@ unconfig:
 		$(obj)board/*/config.tmp $(obj)board/*/*/config.tmp \
 		$(obj)include/autoconf.mk $(obj)include/autoconf.mk.dep
 
+%: %_config
+	$(MAKE)
+
 #========================================================================
 # PowerPC
 #========================================================================
@@ -2511,9 +2514,21 @@ P2020DS_config:		unconfig
 	@$(MKCONFIG) -t $(@:_config=) P2020DS ppc mpc85xx p2020ds freescale
 
 P1011RDB_config	\
+P1011RDB_NAND_config \
+P1011RDB_SDCARD_config \
+P1011RDB_SPIFLASH_config \
 P1020RDB_config	\
+P1020RDB_NAND_config \
+P1020RDB_SDCARD_config \
+P1020RDB_SPIFLASH_config \
 P2010RDB_config \
-P2020RDB_config:	unconfig
+P2010RDB_NAND_config \
+P2010RDB_SDCARD_config \
+P2010RDB_SPIFLASH_config \
+P2020RDB_config \
+P2020RDB_NAND_config \
+P2020RDB_SDCARD_config \
+P2020RDB_SPIFLASH_config:	unconfig
 	@$(MKCONFIG) -t $(@:_config=) P1_P2_RDB ppc mpc85xx p1_p2_rdb freescale
 
 PM854_config:	unconfig
@@ -2691,6 +2706,12 @@ at91rm9200ek_config	:	unconfig
 cmc_pu2_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm920t cmc_pu2 NULL at91rm9200
 
+CPUAT91_RAM_config \
+CPUAT91_config	:	unconfig
+	@mkdir -p $(obj)include
+	@echo "#define CONFIG_$(@:_config=) 1"	>$(obj)include/config.h
+	@$(MKCONFIG) -a cpuat91 arm arm920t cpuat91 eukrea at91rm9200
+
 csb637_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm920t csb637 NULL at91rm9200
 
@@ -2820,6 +2841,14 @@ at91sam9rlek_config	:	unconfig
 		$(XECHO) "... with environment variable in SPI DATAFLASH CS0" ; \
 	fi;
 	@$(MKCONFIG) -a at91sam9rlek arm arm926ejs at91sam9rlek atmel at91
+
+CPU9G20_128M_config \
+CPU9G20_config \
+CPU9260_128M_config \
+CPU9260_config	:	unconfig
+	@mkdir -p $(obj)include
+	@echo "#define CONFIG_$(@:_config=) 1" >$(obj)include/config.h
+	@$(MKCONFIG) -a cpu9260 arm arm926ejs cpu9260 eukrea at91
 
 meesc_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm926ejs meesc esd at91
@@ -2975,6 +3004,9 @@ omap1610h2_cs_autoboot_config:	unconfig
 
 omap5912osk_config :	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm926ejs omap5912osk ti omap
+
+openrd_base_config: unconfig
+	@$(MKCONFIG) $(@:_config=) arm arm926ejs $(@:_config=) Marvell kirkwood
 
 xtract_omap730p2 = $(subst _cs0boot,,$(subst _cs3boot,, $(subst _config,,$1)))
 
@@ -3530,10 +3562,6 @@ BFIN_BOARDS += ibf-dsp561
 
 $(BFIN_BOARDS:%=%_config)	: unconfig
 	@$(MKCONFIG) $(@:_config=) blackfin blackfin $(@:_config=)
-
-$(BFIN_BOARDS):
-	$(MAKE) $@_config
-	$(MAKE)
 
 #========================================================================
 # AVR32
