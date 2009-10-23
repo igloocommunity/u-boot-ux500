@@ -162,6 +162,7 @@
  */
 #define CFG_EMMC_BASE    		0x80114000  	/* EMMC base of size 2GB for 8500  */
 #define CONFIG_CMD_ENV
+#define CONFIG_CMD_SAVEENV	/* CMD_ENV is obsolete but used in env_emmc.c */
 #define CONFIG_ENV_IS_IN_EMMC		1
 #define CONFIG_ENV_OFFSET_START    	0x260000
 #define CONFIG_ENV_OFFSET_END 		0x27F000 
