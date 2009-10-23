@@ -49,25 +49,21 @@ block_dev_desc_t * mmc_get_dev(int dev)
 unsigned long mmc_block_read(int dev, unsigned long blknr,lbaint_t blkcnt,
 				void *dest)
 {
-	unsigned long src= blknr;
-
-#if 0
-	unsigned long rc = 0;
 	unsigned long i;
+	unsigned long src= blknr;
+	unsigned long rc = 0;
 
 	for(i = 0; i < blkcnt; i++)
 	{		
-		mmc_readblock (1, (u32) (512 * src), (u32 *)dest, 512, MMCPOLLING);
-		rc ++;
+		/* card#, read offset, buffer, blocksize, transfer mode */
+		mmc_readblock(1, (u32) (512 * src), (u32 *)dest, 512,
+				MMCPOLLING);
+		rc++;
 		src++;
 		dest += 512;		
 	}
-#endif
-	printf("mmc_block_read: dev# %d, blknr %d, blkcnt %d\n",
-			dev, blknr, blkcnt);
-	/* card#, read offset, buffer, blocksize, transfer mode */
-	mmc_readblock (1, (u32) (512 * src), (u32 *)dest, 512, MMCPOLLING);
-	return 1;
+
+	return rc;
 }
 
 t_mmc_error   mmc_fat_read_file (char *filename, u32 address, u32 FileSize)
@@ -329,13 +325,12 @@ static int init_mmc(void)
     gpio_base_address -> gpio_dats |= 0x1FFC0000;
     gpio_base_address -> gpio_pdis &= ~0x1FFC0000; 
       
-#if 0
 #ifdef CONFIG_CMD_FAT
+#if 0
     if(init_mmc_fat())
     {
     	printf(" MMC Card not found \n");
     }
-#endif
 #endif
 	if (mmc_hw_init() != 0) {
 		printf("mmc_init: hw init failed\n");
@@ -355,6 +350,7 @@ static int init_mmc(void)
 	if (fat_register_device(&mmc_dev, 1) != 0) {    	
 		printf("mmc_init: could not register as FAT device\n");
 	}
+#endif /* CONFIG_CMD_FAT */
 
 	return 0;
 }
