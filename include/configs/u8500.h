@@ -32,9 +32,10 @@
 #define CONFIG_U8500_ED			1
 #define CONFIG_L2_OFF			1
 
-#define PCI_IO_VADDR            	0xee000000
+// XXX: nomadik left over?
+// #define PCI_IO_VADDR            	0xee000000
 
-#define __io(a)                 	((void __iomem *)(PCI_IO_VADDR + (a)))
+// #define __io(a)                 	((void __iomem *)(PCI_IO_VADDR + (a)))
 
 #define CONFIG_SYS_MEMTEST_START	0x00000000
 #define CONFIG_SYS_MEMTEST_END		0x1FFFFFFF
@@ -49,7 +50,7 @@
 #define CONFIG_MISC_INIT_R		1	/* call misc_init_r during start up */
 	
 #define BOARD_LATE_INIT			1
-#define LITTLEENDIAN
+#define LITTLEENDIAN				/* XXX: obsoleted */
 
 /*-----------------------------------------------------------------------
  * Size of malloc() pool
@@ -100,6 +101,19 @@
 #define CONFIG_BOOTARGS         	"cachepolicy=writealloc root=/dev/ram0 initrd=0x800000,20M init=linuxrc rw console=ttyAMA2,115200n8 mem=256M board_id=0"
 #define CONFIG_BOOTCOMMAND      	"emmc_read 0x100000 0x280000 0x200000; bootm 0x100000"
 
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	"loadaddr=0x00100000\0" \
+	"console=ttyAMA2,115200n8\0" \
+	"loadbootscript=fatload mmc 0 ${loadaddr} boot.scr\0" \
+	"bootscript=echo Running bootscript from mmc ...; " \
+		"source ${loadaddr}\0" \
+	"loaduimage=fatload mmc 0 ${loadaddr} uImage\0" \
+	"usbtty=cdc_acm\0"\
+	"stdout=serial,usbtty\0" \
+	"stdin=serial,usbtty\0" \
+	"stderr=serial,usbtty\0"
+
+#define CONFIG_USB_TTY			1
 #ifndef CONFIG_USB_TTY
 #define CONFIG_PREBOOT 			"mmc init;mmc_read_cmd_file"
 #endif
@@ -171,13 +185,16 @@
  * USB related configs
  */
 #define CONFIG_USB_BASE 		0xA03E0000
+#define UDC_BASE	 		0xA03E0000
 
+#define CONFIG_USB_DEVICE		1
+#define CONFIG_MUSB			1 /* Enable USB driver */ 
 #ifdef CONFIG_USB_TTY
-#define CONFIG_ARM
-#define CONFIG_USBTTY	"cdc_acm"
-#define CONFIG_USB_DEVICE
-#define CONFIG_SYS_CONSOLE_IS_IN_ENV
-#define __LITTLE_ENDIAN 1
+#define CONFIG_USBTTY			"cdc_acm"	/* XXX: obsoleted */
+/* Allow console in serial and USB at the same time */
+#define CONFIG_CONSOLE_MUX		1 
+#define CONFIG_SYS_CONSOLE_IS_IN_ENV	1
+#define __LITTLE_ENDIAN 1	/* XXX: not necessary, handled by buildsystem */
 #define CONFIG_SYS_CONSOLE_ENV_OVERWRITE
 #endif
 /*-----------------------------------------------------------------------

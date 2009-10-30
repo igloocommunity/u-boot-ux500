@@ -27,6 +27,8 @@
 #include <usbdevice.h>
 #if defined(CONFIG_PPC)
 #include <usb/mpc8xx_udc.h>
+#elif defined(CONFIG_MUSB)
+#include <usb/musb_udc.h>
 #elif defined(CONFIG_OMAP1510)
 #include <usb/omap1510_udc.h>
 #elif defined(CONFIG_PXA27X)
