@@ -27,20 +27,26 @@
 #include <asm/errno.h>
 
 #include "common.h"
+#define NOMADIK_PER4_BASE       (0x80150000)
+#define NOMADIK_BACKUPRAM0_BASE (NOMADIK_PER4_BASE + 0x00000)
+#define NOMADIK_BACKUPRAM1_BASE (NOMADIK_PER4_BASE + 0x01000)
+
+extern void	(*handler)(); 
+extern unsigned volatile long magic_num;
+extern void secondary_wfe();
+
+void wake_up_other_cores()
+{
+	handler = secondary_wfe;
+	*((volatile unsigned int *)(NOMADIK_BACKUPRAM0_BASE+0x1FF4))= handler;
+	*((volatile unsigned int *)(NOMADIK_BACKUPRAM0_BASE+0x1FF0))= 0xA1FEED01;
+	asm("SEV");
+	return;
+}
 
 void init_regs(void);
-#if 0
-void *memcopy(void *dest, const void *src, size_t count)
-{
-    u16 *tmp = (u16 *) dest, *s = (u16 *) src;
 
-    count = count / 2;
-    while (count--)
-        *tmp++ = *s++;
-
-    return dest;
-}
-#endif
+DECLARE_GLOBAL_DATA_PTR;
 #if defined(CONFIG_SHOW_BOOT_PROGRESS)
 void show_boot_progress(int progress)
 {
@@ -60,7 +66,6 @@ static inline void delay(unsigned long loops)
 
 int board_init(void)
 {    
-    DECLARE_GLOBAL_DATA_PTR;
     gd->bd->bi_arch_number = 0x1A4;
     gd->bd->bi_boot_params = 0x00000100;
     //enable the timers in PRCMU reg
@@ -86,12 +91,13 @@ Description:
 ******************************/
 int dram_init(void)
 {
-    DECLARE_GLOBAL_DATA_PTR;
     gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
     gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE_1;
+#ifdef CONFIG_U8500_V1
     gd->bd->bi_dram[1].start = PHYS_SDRAM_2;
     gd->bd->bi_dram[1].size = PHYS_SDRAM_SIZE_2;
-
+#endif
+    wake_up_other_cores();
     return 0;
 }
 
@@ -103,6 +109,7 @@ unsigned int addr_vall_arr[] = {
 0x8000F008, 0x00007FFF, // Clocks for I2C  TODO Enable reqd only
 0x8000E120, 0x003C0000, // GPIO for I2C/SD
 0x8000E124, 0x00000000, // GPIO for I2C/SD
+0x80157020, 0x00000130, // I2C 48MHz clock
 0x8012F000, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
 0x8012F008, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
 0xA03DF000, 0x0000000D, // Clock for MTU Timers

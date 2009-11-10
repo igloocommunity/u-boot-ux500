@@ -98,8 +98,8 @@
 #define CONFIG_CMD_EMMC
 
 #define CONFIG_BOOTDELAY		5
-#define CONFIG_BOOTARGS         	"cachepolicy=writealloc root=/dev/ram0 initrd=0x800000,20M init=linuxrc rw console=ttyAMA2,115200n8 mem=256M board_id=0"
-#define CONFIG_BOOTCOMMAND      	"emmc_read 0x100000 0x280000 0x200000; bootm 0x100000"
+#define CONFIG_BOOTARGS    	"cachepolicy=writealloc root=/dev/mmcblk0p2 noinitrd rootfstype=ext3 rootdelay=1 init=/linuxrc console=ttyAMA2,115200n8 board_id=1 mem=96M@0 mem=128M@128M"
+#define CONFIG_BOOTCOMMAND 	"emmc_read 0x100000 0x14000000 0x200000; bootm 0x100000"
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x00100000\0" \
@@ -178,8 +178,8 @@
 #define CONFIG_CMD_ENV
 #define CONFIG_CMD_SAVEENV	/* CMD_ENV is obsolete but used in env_emmc.c */
 #define CONFIG_ENV_IS_IN_EMMC		1
-#define CONFIG_ENV_OFFSET_START    	0x260000
-#define CONFIG_ENV_OFFSET_END 		0x27F000 
+#define CONFIG_ENV_OFFSET_START		0x13F80000
+#define CONFIG_ENV_OFFSET_END 		0x13FE0000 
 
 /*-----------------------------------------------------------------------
  * USB related configs

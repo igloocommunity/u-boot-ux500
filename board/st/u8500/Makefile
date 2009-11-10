@@ -27,7 +27,7 @@ CFLAGS += -D__RELEASE -D__STN_8500
 LIB	= $(obj)lib$(BOARD).a
 
 COBJS	:= u8500.o flash.o gpio.o i2c.o mmc.o mmc_utils.o init_mmc.o emmc.o
-SOBJS	:=
+SOBJS	:= core2.o
 
 SRCS	:= $(SOBJS:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
