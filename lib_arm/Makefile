@@ -44,6 +44,7 @@ COBJS-y	+= cache-cp15.o
 endif
 COBJS-y	+= interrupts.o
 COBJS-y	+= reset.o
+COBJS-y	+= boottime.o
 
 SRCS	:= $(GLSOBJS:.o=.S) $(GLCOBJS:.o=.c) \
 	   $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)

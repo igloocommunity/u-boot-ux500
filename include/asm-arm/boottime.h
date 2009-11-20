@@ -1,20 +1,41 @@
+/*
+ * (C) Copyright 2009 ST-Ericsson AB
+ * Jonas Aaberg <jonas.aberg@stericsson.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA
+ *
+ */
+
+
 
 #ifndef BOOTTIME_H
 #define BOOTTIME_H
 
-ulong get_raw_timer(void);
-extern ulong boottime_ticks_uboot_init;
-extern ulong boottime_ticks_load_kernel;
-extern ulong boottime_ticks_uboot_done;
+#include <asm/setup.h>
 
 #ifdef CONFIG_BOOTTIME
-#define boottime_tag_uboot_init() boottime_ticks_uboot_init = get_raw_timer();
-#define boottime_tag_load_kernel() boottime_ticks_load_kernel = get_raw_timer();
-#define boottime_tag_uboot_done() boottime_ticks_uboot_done = get_raw_timer();
+int boottime_tag(char *name);
+void boottime_remove_last(void);
+struct boottime_entry *boottime_get_entry(unsigned int i);
+ulong boottime_idle_get(void);
+ulong boottime_idle_done(void);
+void boottime_idle_add(ulong i);
 #else
-#define boottime_tag_uboot_init()
-#define boottime_tag_load_kernel()
-#define boottime_tag_uboot_done()
+#define boottime_tag(x) 0
+#define boottime_remove_last()
+#define boottime_idle_add(x)
 #endif
 
 #endif

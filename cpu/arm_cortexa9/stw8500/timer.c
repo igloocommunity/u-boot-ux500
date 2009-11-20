@@ -66,7 +66,7 @@ int timer_init(void)
 	writel(MTU_CRn_ENA | MTU_CRn_PRESCALE_16 | MTU_CRn_32BITS,
 	       CONFIG_SYS_TIMERBASE + MTU_CR(MTU_TIMER));
 	reset_timer();
-	boottime_tag_uboot_init();
+	boottime_tag("uboot_init");
 	return 0;
 }
 
@@ -99,4 +99,5 @@ void udelay(unsigned long usec)
 	end = ini + USEC_TO_COUNT(usec);
 	while ((signed)(end - READ_TIMER()) > 0)
 		;
+	boottime_idle_add(USEC_TO_COUNT(usec));
 }

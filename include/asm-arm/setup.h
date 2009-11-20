@@ -206,13 +206,21 @@ struct tag_memclk {
 };
 
 /* for automatic boot timing testcases */
-#define ATAG_BOOTTIME_UBOOT_INIT  0x41000403
-#define ATAG_BOOTTIME_LOAD_KERNEL 0x41000404
-#define ATAG_BOOTTIME_UBOOT_DONE  0x41000405
+#define ATAG_BOOTTIME  0x41000403
+#define BOOTTIME_MAX_NAME_LEN 64
+#define BOOTTIME_MAX 10
+struct boottime_entry {
+	u32 tick;
+	u8  name[BOOTTIME_MAX_NAME_LEN];
+};
 
 struct tag_boottime {
-	u32 tick;
+	struct boottime_entry entry[BOOTTIME_MAX];
+	u32 idle;
+	u32 total;
+	u8 num;
 };
+
 
 struct tag {
 	struct tag_header hdr;

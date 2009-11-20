@@ -235,8 +235,6 @@ int emmc_read(u32 block_offset, u32 read_buffer, u32 filesize)
 
     	printf(" eMMC read start filesize=0x%x \n", filesize);    	
 
-	boottime_tag_load_kernel();
-
     	blocks = (n%512==0)?(n/512):(n/512)+1;   	
     	
     	while(blocks>=8)
@@ -354,11 +352,13 @@ int do_emmc_read (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
         block_offset 	= simple_strtoul (argv[2],0,16);
         filesize  	= simple_strtoul (argv[3],0,16);
 	
+	boottime_tag("load_image");
 	printf("emmc_read :: ram address = 0x%x block address=0x%x \n",ram_address,block_offset);
             
         load_result      = emmc_read(block_offset,ram_address,filesize);
         if (load_result != 0)
         {
+		boottime_remove_last();
             error_name   = (unsigned long) (-load_result);
             printf("emmc_read error : in reading data from eMMC block \n");         
         }

@@ -54,15 +54,13 @@ static void setup_end_tag (bd_t *bd);
 static void setup_videolfb_tag (gd_t *gd);
 # endif
 
+#ifdef CONFIG_BOOTTIME
+static void setup_boottime_tags(void);
+#endif
+
 static struct tag *params;
 #endif /* CONFIG_SETUP_MEMORY_TAGS || CONFIG_CMDLINE_TAG || CONFIG_INITRD_TAG */
 
-#ifdef CONFIG_BOOTTIME
-ulong boottime_ticks_uboot_init = 0;
-ulong boottime_ticks_load_kernel = 0;
-ulong boottime_ticks_uboot_done = 0;
-static void setup_boottime_tags(void);
-#endif
 
 int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 {
@@ -91,7 +89,7 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 	debug ("## Transferring control to Linux (at address %08lx) ...\n",
 	       (ulong) theKernel);
 
-	boottime_tag_uboot_done()
+	boottime_tag("uncompress_ll_init");
 
 #if defined (CONFIG_SETUP_MEMORY_TAGS) || \
     defined (CONFIG_CMDLINE_TAG) || \
@@ -168,33 +166,6 @@ static void setup_start_tag (bd_t *bd)
 	params = tag_next (params);
 }
 
-#ifdef CONFIG_BOOTTIME
-static void setup_boottime_tags(void)
-{
-	if(!boottime_ticks_uboot_init)
-		printf("Warning: uboot init time not tracked\n");
-	if(!boottime_ticks_load_kernel)
-		printf("Warning: load kernel time not tracked\n");
-	if(!boottime_ticks_uboot_done)
-		printf("Warning: uboot done time not tracked\n");
-
-	params->hdr.tag = ATAG_BOOTTIME_UBOOT_INIT;
-	params->hdr.size = tag_size (tag_boottime);
-	params->u.boottime.tick = boottime_ticks_uboot_init;
-	params = tag_next (params);
-
-	params->hdr.tag = ATAG_BOOTTIME_LOAD_KERNEL;
-	params->hdr.size = tag_size (tag_boottime);
-	params->u.boottime.tick = boottime_ticks_load_kernel;
-	params = tag_next (params);
-
-	params->hdr.tag = ATAG_BOOTTIME_UBOOT_DONE;
-	params->hdr.size = tag_size (tag_boottime);
-	params->u.boottime.tick = boottime_ticks_uboot_done;
-	params = tag_next (params);
-
-}
-#endif
 
 #ifdef CONFIG_SETUP_MEMORY_TAGS
 static void setup_memory_tags (bd_t *bd)
@@ -213,6 +184,36 @@ static void setup_memory_tags (bd_t *bd)
 }
 #endif /* CONFIG_SETUP_MEMORY_TAGS */
 
+#ifdef CONFIG_BOOTTIME
+static void setup_boottime_tags(void)
+{
+	unsigned int i;
+	struct boottime_entry *b;
+
+	params->hdr.tag = ATAG_BOOTTIME;
+	params->hdr.size = tag_size(tag_boottime);
+
+	params->u.boottime.idle = boottime_idle_get();
+	params->u.boottime.total = boottime_idle_done();
+
+	for (i = 0; i < BOOTTIME_MAX; i++) {
+		b = boottime_get_entry(i);
+		if (b == NULL)
+			break;
+
+		params->u.boottime.entry[i].tick = b->tick;
+		strncpy((char *)params->u.boottime.entry[i].name,
+			(char *)b->name, BOOTTIME_MAX_NAME_LEN);
+		params->u.boottime.entry[i].name[BOOTTIME_MAX_NAME_LEN - 1] = '\0';
+
+	}
+
+	params->u.boottime.num = i;
+
+	params = tag_next(params);
+
+}
+#endif
 
 static void setup_commandline_tag (bd_t *bd, char *commandline)
 {
