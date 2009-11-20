@@ -26,6 +26,7 @@
 #include <image.h>
 #include <u-boot/zlib.h>
 #include <asm/byteorder.h>
+#include <asm/boottime.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -56,6 +57,13 @@ static void setup_videolfb_tag (gd_t *gd);
 static struct tag *params;
 #endif /* CONFIG_SETUP_MEMORY_TAGS || CONFIG_CMDLINE_TAG || CONFIG_INITRD_TAG */
 
+#ifdef CONFIG_BOOTTIME
+ulong boottime_ticks_uboot_init = 0;
+ulong boottime_ticks_load_kernel = 0;
+ulong boottime_ticks_uboot_done = 0;
+static void setup_boottime_tags(void);
+#endif
+
 int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 {
 	bd_t	*bd = gd->bd;
@@ -83,14 +91,20 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 	debug ("## Transferring control to Linux (at address %08lx) ...\n",
 	       (ulong) theKernel);
 
+	boottime_tag_uboot_done()
+
 #if defined (CONFIG_SETUP_MEMORY_TAGS) || \
     defined (CONFIG_CMDLINE_TAG) || \
     defined (CONFIG_INITRD_TAG) || \
     defined (CONFIG_SERIAL_TAG) || \
     defined (CONFIG_REVISION_TAG) || \
     defined (CONFIG_LCD) || \
-    defined (CONFIG_VFD)
+    defined (CONFIG_VFD) || \
+    defined (CONFIG_BOOTTIME)
 	setup_start_tag (bd);
+#ifdef CONFIG_BOOTTIME
+	setup_boottime_tags();
+#endif
 #ifdef CONFIG_SERIAL_TAG
 	setup_serial_tag (&params);
 #endif
@@ -112,6 +126,7 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 #endif
 	setup_end_tag (bd);
 #endif
+
 
 	/* we assume that the kernel is in place */
 	printf ("\nStarting kernel ...\n\n");
@@ -153,6 +168,33 @@ static void setup_start_tag (bd_t *bd)
 	params = tag_next (params);
 }
 
+#ifdef CONFIG_BOOTTIME
+static void setup_boottime_tags(void)
+{
+	if(!boottime_ticks_uboot_init)
+		printf("Warning: uboot init time not tracked\n");
+	if(!boottime_ticks_load_kernel)
+		printf("Warning: load kernel time not tracked\n");
+	if(!boottime_ticks_uboot_done)
+		printf("Warning: uboot done time not tracked\n");
+
+	params->hdr.tag = ATAG_BOOTTIME_UBOOT_INIT;
+	params->hdr.size = tag_size (tag_boottime);
+	params->u.boottime.tick = boottime_ticks_uboot_init;
+	params = tag_next (params);
+
+	params->hdr.tag = ATAG_BOOTTIME_LOAD_KERNEL;
+	params->hdr.size = tag_size (tag_boottime);
+	params->u.boottime.tick = boottime_ticks_load_kernel;
+	params = tag_next (params);
+
+	params->hdr.tag = ATAG_BOOTTIME_UBOOT_DONE;
+	params->hdr.size = tag_size (tag_boottime);
+	params->u.boottime.tick = boottime_ticks_uboot_done;
+	params = tag_next (params);
+
+}
+#endif
 
 #ifdef CONFIG_SETUP_MEMORY_TAGS
 static void setup_memory_tags (bd_t *bd)

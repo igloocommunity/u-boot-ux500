@@ -26,6 +26,7 @@
 #include "mmc.h"
 #include "emmc.h"
 #include "gpio.h"
+#include <asm/boottime.h>
 
 #define PIB_EMMC_ADDR 0x00
 /* ========================================================================
@@ -233,7 +234,9 @@ int emmc_read(u32 block_offset, u32 read_buffer, u32 filesize)
     	remaining = filesize;
 
     	printf(" eMMC read start filesize=0x%x \n", filesize);    	
-    
+
+	boottime_tag_load_kernel();
+
     	blocks = (n%512==0)?(n/512):(n/512)+1;   	
     	
     	while(blocks>=8)
@@ -259,7 +262,8 @@ int emmc_read(u32 block_offset, u32 read_buffer, u32 filesize)
         		return 1;
         	}        	    	
         }
-    	printf(" eMMC read done \n");
+    
+     	printf(" eMMC read done \n");
     	return 0;
 }
 
