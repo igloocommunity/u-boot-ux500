@@ -224,7 +224,7 @@ t_mmc_error                   mmc_initCard ()
     clockcontrol.pwrsave= MMC_DISABLE;
     clockcontrol.bypass = MMC_DISABLE;
     clockcontrol.widebus= MMC_DISABLE;
-    error = mmc_setclockfrequency (0x0A);   // 12MHz
+    error = mmc_setclockfrequency(0x00);	/* 26 MHz */
     if (error != MMC_OK)
     {
         goto end;

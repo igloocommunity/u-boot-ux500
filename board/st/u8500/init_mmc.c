@@ -34,52 +34,65 @@
 #endif 
 
 #define LOOP(x) {int i;for(i=0;i<1000;i++);}
-#ifdef CONFIG_CMD_FAT
-static block_dev_desc_t mmc_dev;
-u32  	CSD[4];
-char    MMC_CmdBuffer[1024] ;
 
-extern long do_fat_read (const char *filename, void *buffer, unsigned long maxsize,int dols);
+#define MMC_CARD_NUM	1
+#define EMMC_CARD_NUM	4
+enum {
+	DEV_EMMC = 0,
+	DEV_MMC
+};
+
+static block_dev_desc_t mmc_dev;
+static block_dev_desc_t emmc_dev;
+static u32	CSD[4];
 
 block_dev_desc_t * mmc_get_dev(int dev)
 {
-	return (block_dev_desc_t *)(&mmc_dev);
+	if (dev == DEV_EMMC)
+		return (block_dev_desc_t *)(&emmc_dev);
+	else if (dev == DEV_MMC)
+		return (block_dev_desc_t *)(&mmc_dev);
+
+	printf("mmc_get_dev: unknown dev %d\n", dev);
+	return 0;
 }
 
-unsigned long mmc_block_read(int dev, unsigned long blknr,lbaint_t blkcnt,
-				void *dest)
+static unsigned long emmc_block_read(int dev, unsigned long blknr,
+					lbaint_t blkcnt, void *dest)
+{
+	unsigned long rc;
+
+	rc = mmc_readblocks(EMMC_CARD_NUM, (u32) (512 * blknr), (u32 *)dest,
+			512, blkcnt);
+	if (rc != 0) {
+		printf("mmc_block_read: readblocks failed %ld\n", rc);
+		rc = 0;
+	} else {
+		rc = blkcnt;
+	}
+	return rc;
+}
+
+unsigned long mmc_block_read(int dev, unsigned long blknr,
+					lbaint_t blkcnt, void *dest)
 {
 	unsigned long i;
 	unsigned long src= blknr;
 	unsigned long rc = 0;
 
 	for(i = 0; i < blkcnt; i++)
-	{		
-		/* card#, read offset, buffer, blocksize, transfer mode */
-		mmc_readblock(1, (u32) (512 * src), (u32 *)dest, 512,
-				MMCPOLLING);
+	{
+		/* card#, read offset, buffer, blksize, transfer mode */
+		mmc_readblock(MMC_CARD_NUM, (u32) (512 * src),
+				(u32 *)dest, 512, MMCPOLLING);
 		rc++;
 		src++;
-		dest += 512;		
+		dest += 512;
 	}
-
 	return rc;
 }
 
-t_mmc_error   mmc_fat_read_file (char *filename, u32 address, u32 FileSize)
-{
-	u8                      *mem_address = (u8 *) address;
-	t_mmc_error                   mmc_error = MMC_OK;
-
-	if((do_fat_read(filename,mem_address,FileSize,0)) < 0)
-	{
-		printf("error in reading %s file\n",filename);
-		mmc_error = MMC_INVALID_PARAMETER;
-	}
-	return mmc_error;
-}
-
-int mmc_hw_init (void)
+int mmc_hw_init(void)
 {
     t_mmc_error           response;    
 
@@ -116,71 +129,6 @@ int mmc_hw_init (void)
     return 1;
 }
 
-/*
- * init_mmc_fat - initialise MMC HW and register as FAT device
- */
-int init_mmc_fat(void)
-{    
-    unsigned int size;
-    unsigned int sizemult;
-    unsigned long num_sects;
-    unsigned long sect_size;	/* in bytes */
-    unsigned long mmc_size;
-
-    if(mmc_hw_init())
-    {    	
-    	goto end;
-    }
-    /*read block len*/
-    sect_size = 1<<((CSD[2] << 12 )>>28);
-    /*c_size */
-    size = ((CSD[2] & 0x3ff)<<2) + (CSD[1]>>30) ;
-    /*size of multiplier */
-    sizemult = (CSD[1] << 14 )>>29;
-
-    num_sects = (size+1)*(1<<(sizemult+2));
-    /* memory capcity of the Inserted Card */
-    mmc_size = (num_sects * sect_size)/(1024 * 1024);
-    printf("Memory Card size = %d MiB \n", mmc_size);
-    printf("sector size is %d, num_sects %d\n", sect_size, num_sects);
-
-    mmc_dev.if_type = IF_TYPE_MMC;
-    mmc_dev.part_type = PART_TYPE_DOS;
-    mmc_dev.dev = 0;
-    mmc_dev.lun = 0;
-    mmc_dev.type = 0;
-    mmc_dev.blksz = 512;
-    mmc_dev.lba = num_sects; /* XXX: assumes 512 blksize */
-    sprintf((char*)mmc_dev.vendor, "Unknown vendor");
-    sprintf((char*)mmc_dev.product, "Unknown product");
-    sprintf((char*)mmc_dev.revision, "N/A");
-    mmc_dev.removable = 0;
-    mmc_dev.block_read = mmc_block_read;
-
-    /* do fat registration with the SD/MMC device*/
-    if (fat_register_device(&mmc_dev, 1) != 0) {    	
-		printf("could not register as FAT device\n");
-		goto end;
-    }
-#if 0
-    printf(" Size   \t    FileName \n");
-    do_fat_read("/", NULL, 0, 1);
-    /* do fat read for the commands to be executed*/
-    if (do_fat_read("command.txt", &MMC_CmdBuffer[0], sizeof(MMC_CmdBuffer), 0)
-		    == -1) {
-    	printf(" No command.txt found in the Card\n");
-    	return (0);
-    }
-    setenv("bootcmd", MMC_CmdBuffer);
-#endif
-    return(0);
-end:
-   gpio_altfuncdisable(GPIO_ALT_SD_CARD0, "MMC");
-   mmc_disable();
-   return 1;
-}
-#endif /* CONFIG_CMD_FAT */
-
 #define I2C_SCL_FREQ            100000          /* I2C bus clock frequency.*/
 #define I2C_INPUT_FREQ          48000000        /* Input clock frequency.*/
 #define I2C0_SLAVE_ADDRESS	(0x84 >>1)		/*GPIO expander slave address*/
@@ -192,7 +140,7 @@ end:
 #define SLAVE_SETUP_TIME 14 /* Slave data setup time */
 
 
-void config_extended_gpio(void)
+static void config_extended_gpio(void)
 {
   t_i2c_error    error_status;
   t_i2c_device_config  i2c_device_config;
@@ -280,26 +228,43 @@ void config_extended_gpio(void)
 }
 
 
-/* ========================================================================
-   Achraf
-   Name:        init_mmc_card
-   Description: init VIC, GPIO and MMC
-
-   ======================================================================== */
-int      mmc_legacy_init(int dev)
+/*
+ * mmc_legacy_init - called from commandline mmc init <dev>
+ *
+ * Initialise hardware and setup block device structure for fat and ext2
+ * commands.
+ */
+int mmc_legacy_init(int dev)
 {
-	/*config extended GPIO pins for Level shifter and SDMMC_ENABLE */
-	config_extended_gpio();
-    
-    	init_mmc();    
-	
-#ifndef CONFIG_CMD_FAT   
-    	if (display_file_list("*") == MMC_CMD_RSP_TIMEOUT)
-    	{
-        	printf("MMC card not available on board\n");
-    	}
-#endif
-    return 0;
+
+	if (dev == DEV_EMMC) {
+		printf("EMMC init\n");
+		/* XXX: emmc_init() does write the MBR (called pib)! */
+		emmc_init(EMMC_CARD_NUM);
+		emmc_dev.if_type = IF_TYPE_MMC;
+		emmc_dev.part_type = PART_TYPE_DOS;
+		emmc_dev.dev = dev;
+		emmc_dev.lun = 0;
+		emmc_dev.type = 0;
+		emmc_dev.blksz = 512;
+		emmc_dev.lba = 0x80000; /* XXX: use real size, here 256 MB */
+		sprintf((char*)emmc_dev.vendor, "Unknown vendor");
+		sprintf((char*)emmc_dev.product, "Unknown product");
+		sprintf((char*)emmc_dev.revision, "N/A");
+		emmc_dev.removable = 0;
+		emmc_dev.block_read = emmc_block_read;
+		return 0;
+	} else if (dev == DEV_MMC) {
+		printf("MMC init\n");
+		/* config extended GPIO pins for Level shifter and
+		 * SDMMC_ENABLE */
+		config_extended_gpio();
+		init_mmc();
+		return 0;
+	}
+
+	printf("mmc_legacy_init: unsupported device# %d\n", dev);
+	return -1;
 }
 
 /* ========================================================================
@@ -325,13 +290,6 @@ static int init_mmc(void)
     gpio_base_address -> gpio_dats |= 0x1FFC0000;
     gpio_base_address -> gpio_pdis &= ~0x1FFC0000; 
       
-#ifdef CONFIG_CMD_FAT
-#if 0
-    if(init_mmc_fat())
-    {
-    	printf(" MMC Card not found \n");
-    }
-#endif
 	if (mmc_hw_init() != 0) {
 		printf("mmc_init: hw init failed\n");
 	}
@@ -347,6 +305,7 @@ static int init_mmc(void)
 	sprintf((char*)mmc_dev.revision, "N/A");
 	mmc_dev.removable = 0;
 	mmc_dev.block_read = mmc_block_read;
+#ifdef CONFIG_CMD_FAT
 	if (fat_register_device(&mmc_dev, 1) != 0) {    	
 		printf("mmc_init: could not register as FAT device\n");
 	}

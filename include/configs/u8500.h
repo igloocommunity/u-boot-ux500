@@ -50,7 +50,6 @@
 #define CONFIG_MISC_INIT_R		1	/* call misc_init_r during start up */
 	
 #define BOARD_LATE_INIT			1
-#define LITTLEENDIAN				/* XXX: obsoleted */
 
 /*-----------------------------------------------------------------------
  * Size of malloc() pool
@@ -73,7 +72,7 @@
 #define CFG_SERIAL0			CFG_UART0_BASE	
 #define CFG_SERIAL1			CFG_UART1_BASE	
 #define CFG_SERIAL2   			CFG_UART2_BASE
-#define CONFIG_PL011_CLOCK 		38400000 
+#define CONFIG_PL011_CLOCK 		38400000
 #define CONFIG_PL01x_PORTS      	{ (void *) (CFG_SERIAL0), (void *) (CFG_SERIAL1), (void *) (CFG_SERIAL2) }
 #define CONFIG_CONS_INDEX		2
 #define CONFIG_BAUDRATE        		115200
@@ -95,27 +94,31 @@
 #define CONFIG_CMD_LOADB
 #define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
+#define CONFIG_CMD_EXT2
 #define CONFIG_CMD_EMMC
+#define CONFIG_CMD_SOURCE
 
+#ifdef CONFIG_USB_TTY
+#define CONFIG_BOOTDELAY		-1	/* disable autoboot */
+#else
 #define CONFIG_BOOTDELAY		5
-#define CONFIG_BOOTARGS         	"cachepolicy=writealloc root=/dev/ram0 initrd=0x800000,20M init=linuxrc rw console=ttyAMA2,115200n8 mem=256M board_id=0"
-#define CONFIG_BOOTCOMMAND      	"emmc_read 0x100000 0x280000 0x200000; bootm 0x100000"
+#endif /* CONFIG_USB_TTY */
+
+#define CONFIG_BOOTARGS	"cachepolicy=writealloc root=/dev/mmcblk0p2 noinitrd rootfstype=ext3 rootdelay=1 init=/linuxrc console=ttyAMA2,115200n8 board_id=1 mem=96M@0 mem=128M@128M"
+#define CONFIG_BOOTCOMMAND	"emmc_read 0x100000 0x14000000 0x200000; bootm 0x100000"
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x00100000\0" \
 	"console=ttyAMA2,115200n8\0" \
-	"loadbootscript=fatload mmc 0 ${loadaddr} boot.scr\0" \
-	"bootscript=echo Running bootscript from mmc ...; " \
-		"source ${loadaddr}\0" \
-	"loaduimage=fatload mmc 0 ${loadaddr} uImage\0" \
+	"reflash=mmc init 1;fatload mmc 1 ${loadaddr} flash.scr; source ${loadaddr}\0" \
+	"loaduimage=mmc init 1;fatload mmc 1 ${loadaddr} uImage\0" \
 	"usbtty=cdc_acm\0"\
 	"stdout=serial,usbtty\0" \
 	"stdin=serial,usbtty\0" \
 	"stderr=serial,usbtty\0"
 
-#define CONFIG_USB_TTY			1
 #ifndef CONFIG_USB_TTY
-#define CONFIG_PREBOOT 			"mmc init;mmc_read_cmd_file"
+#define CONFIG_PREBOOT 			"mmc init 1;mmc_read_cmd_file"
 #endif
 /*-----------------------------------------------------------------------
  * Miscellaneous configurable options
@@ -132,7 +135,7 @@
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
 
 #undef	CONFIG_SYS_CLKS_IN_HZ		/* everything, incl board info, in Hz */
-#define CONFIG_SYS_LOAD_ADDR	0x800000	/* default load address */
+#define CONFIG_SYS_LOAD_ADDR		0x00100000 /* default load address */
 #define CONFIG_SYS_LOADS_BAUD_CHANGE 	1
 
 #define CONFIG_SYS_HUSH_PARSER 		1
@@ -140,7 +143,7 @@
 #define CONFIG_CMDLINE_EDITING
 
 
-#define CONFIG_SETUP_MEMORY_TAGS 	2 
+#define CONFIG_SETUP_MEMORY_TAGS 	2
 #define CONFIG_INITRD_TAG 		1
 #define CONFIG_CMDLINE_TAG		1	/* enable passing of ATAGs  */
 
@@ -160,26 +163,26 @@
  * Physical Memory Map
  */
 #define CONFIG_NR_DRAM_BANKS		2	/* we have dual bank of DRAM */
-#define PHYS_SDRAM_1           		0x00000000	/* DDR-SDRAM Bank #1 */
-#define PHYS_SDRAM_SIZE_1	        0x10000000	/* 256 MB */
-#define PHYS_SDRAM_2           		0x20000000	/* DDR-SDRAM Bank #2 */
-#define PHYS_SDRAM_SIZE_2	        0x10000000	/* 256 MB */
+#define PHYS_SDRAM_1			0x00000000	/* DDR-SDRAM Bank #1 */
+#define PHYS_SDRAM_SIZE_1		0x10000000	/* 256 MB */
+#define PHYS_SDRAM_2			0x20000000	/* DDR-SDRAM Bank #2 */
+#define PHYS_SDRAM_SIZE_2		0x10000000	/* 256 MB */
 
 /*-----------------------------------------------------------------------
  * MMC related configs
  */
-#define MMC_BLOCK_SIZE          	512 
-#define CFG_MMC_BASE    		0x80126000  	/* MMC base for 8500  */
+#define MMC_BLOCK_SIZE			512
+#define CFG_MMC_BASE			0x80126000	/* MMC base for 8500  */
 
 /*-----------------------------------------------------------------------
  * EMMC related configs
  */
-#define CFG_EMMC_BASE    		0x80114000  	/* EMMC base of size 2GB for 8500  */
+#define CFG_EMMC_BASE		0x80114000	/* EMMC base of size 2GB for 8500  */
 #define CONFIG_CMD_ENV
 #define CONFIG_CMD_SAVEENV	/* CMD_ENV is obsolete but used in env_emmc.c */
 #define CONFIG_ENV_IS_IN_EMMC		1
-#define CONFIG_ENV_OFFSET_START    	0x260000
-#define CONFIG_ENV_OFFSET_END 		0x27F000 
+#define CONFIG_ENV_OFFSET_START		0x13F80000
+#define CONFIG_ENV_OFFSET_END 		0x13FE0000
 
 /*-----------------------------------------------------------------------
  * USB related configs
@@ -188,13 +191,11 @@
 #define UDC_BASE	 		0xA03E0000
 
 #define CONFIG_USB_DEVICE		1
-#define CONFIG_MUSB			1 /* Enable USB driver */ 
+#define CONFIG_MUSB			1 /* Enable USB driver */
 #ifdef CONFIG_USB_TTY
-#define CONFIG_USBTTY			"cdc_acm"	/* XXX: obsoleted */
 /* Allow console in serial and USB at the same time */
-#define CONFIG_CONSOLE_MUX		1 
+#define CONFIG_CONSOLE_MUX		1
 #define CONFIG_SYS_CONSOLE_IS_IN_ENV	1
-#define __LITTLE_ENDIAN 1	/* XXX: not necessary, handled by buildsystem */
 #define CONFIG_SYS_CONSOLE_ENV_OVERWRITE
 #endif
 /*-----------------------------------------------------------------------
@@ -207,7 +208,7 @@
 
 #else
 
-#define CFG_POP_EMMC_BASE    		0x80005000  	/*POP EMMC base of size 256MB for 8500 cut1.0 */
+#define CFG_POP_EMMC_BASE	0x80005000  	/*POP EMMC base of size 256MB for 8500 cut1.0 */
 
 #endif
 
@@ -239,6 +240,6 @@
 /*
  * U8500 RTC register base
  */
-#define CFG_RTC_BASE    		0x80154000	/* Real time clock */
+#define CFG_RTC_BASE			0x80154000	/* Real time clock */
 
 #endif	/* __CONFIG_H */
