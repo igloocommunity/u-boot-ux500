@@ -39,7 +39,9 @@
 /LOG
 /errlog
 /reloc_off
-build
+
+# ignore build output directories
+build*
 
 # stgit generated dirs
 patches-*
