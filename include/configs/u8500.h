@@ -32,6 +32,8 @@
 #define CONFIG_U8500_ED			1
 #define CONFIG_L2_OFF			1
 
+#define CONFIG_BOOTTIME		/* enable boot time stamps */
+
 // XXX: nomadik left over?
 // #define PCI_IO_VADDR            	0xee000000
 
@@ -101,7 +103,11 @@
 #ifdef CONFIG_USB_TTY
 #define CONFIG_BOOTDELAY		-1	/* disable autoboot */
 #else
+#ifndef CONFIG_BOOTTIME
 #define CONFIG_BOOTDELAY		5
+#define CONFIG_BOOTDELAY		0
+#else
+#endif /* !CONFIG_BOOTTIME */
 #endif /* CONFIG_USB_TTY */
 
 #define CONFIG_BOOTARGS	"cachepolicy=writealloc root=/dev/mmcblk0p2 noinitrd rootfstype=ext3 rootdelay=1 init=/linuxrc console=ttyAMA2,115200n8 board_id=1 mem=96M@0 mem=128M@128M"
