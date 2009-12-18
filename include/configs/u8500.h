@@ -1,6 +1,6 @@
 /*
  * (C) Copyright 2009
- * STEricsson, <www.stericsson.com>
+ * ST-Ericsson, <www.stericsson.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -28,35 +28,35 @@
  * High Level Configuration Options
  * (easy to change)
  */
-#define CONFIG_U8500			1
-#define CONFIG_U8500_ED			1
-#define CONFIG_L2_OFF			1
-
-// XXX: nomadik left over?
-// #define PCI_IO_VADDR            	0xee000000
-
-// #define __io(a)                 	((void __iomem *)(PCI_IO_VADDR + (a)))
+#define CONFIG_U8500		1
+#define CONFIG_U8500_ED		1
+#define CONFIG_L2_OFF		1
 
 #define CONFIG_SYS_MEMTEST_START	0x00000000
-#define CONFIG_SYS_MEMTEST_END		0x1FFFFFFF
-#define CONFIG_SYS_HZ			1000//(2400000 / 128)	/* Timer0 is clocked at 2.4Mhz  with 256 divider */
+#define CONFIG_SYS_MEMTEST_END	0x1FFFFFFF
+#define CONFIG_SYS_HZ		1000		/* must be 1000 */
 
 #ifndef CONFIG_U8500_V1
-#define CONFIG_SYS_TIMERBASE		0xA03DA000      /* MTU0 timer */
+#define CONFIG_SYS_TIMERBASE	0xA03DA000      /* MTU0 timer */
 #else
-#define CONFIG_SYS_TIMERBASE		0xA03C6000      /* MTU0 timer */
+#define CONFIG_SYS_TIMERBASE	0xA03C6000      /* MTU0 timer */
 #endif
 
-#define CONFIG_MISC_INIT_R		1	/* call misc_init_r during start up */
-	
-#define BOARD_LATE_INIT			1
+#define CONFIG_MISC_INIT_R	1	/* call misc_init_r during start up */
+
+#define BOARD_LATE_INIT		1
 
 /*-----------------------------------------------------------------------
  * Size of malloc() pool
  */
-#define CONFIG_ENV_SIZE            	128*1024
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + 256*1024)
-#define CONFIG_SYS_GBL_DATA_SIZE	128	/* size in bytes reserved for initial data */
+#ifdef CONFIG_BOOT_SRAM
+#define CONFIG_ENV_SIZE		32*1024
+#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 64*1024)
+#else
+#define CONFIG_ENV_SIZE		128*1024
+#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 256*1024)
+#endif
+#define CONFIG_SYS_GBL_DATA_SIZE	128	/* for initial data */
 
 /*-----------------------------------------------------------------------
  * PL011 Configuration
@@ -66,21 +66,21 @@
 /*
  * U8500 UART registers base for 3 serial devices
  */
-#define CFG_UART0_BASE			0x80120000
-#define CFG_UART1_BASE			0x80121000
-#define CFG_UART2_BASE			0x80007000
-#define CFG_SERIAL0			CFG_UART0_BASE	
-#define CFG_SERIAL1			CFG_UART1_BASE	
-#define CFG_SERIAL2   			CFG_UART2_BASE
-#define CONFIG_PL011_CLOCK 		38400000
-#define CONFIG_PL01x_PORTS      	{ (void *) (CFG_SERIAL0), (void *) (CFG_SERIAL1), (void *) (CFG_SERIAL2) }
-#define CONFIG_CONS_INDEX		2
-#define CONFIG_BAUDRATE        		115200
-#define CONFIG_SYS_BAUDRATE_TABLE      	{ 9600, 19200, 38400, 57600, 115200 }
- 
-// do_fat_read will loop (insane timeout), e.g. fail, if this is defined
-#define CONFIG_MMC			1
-#define CONFIG_DOS_PARTITION		1
+#define CFG_UART0_BASE		0x80120000
+#define CFG_UART1_BASE		0x80121000
+#define CFG_UART2_BASE		0x80007000
+#define CFG_SERIAL0		CFG_UART0_BASE
+#define CFG_SERIAL1		CFG_UART1_BASE
+#define CFG_SERIAL2		CFG_UART2_BASE
+#define CONFIG_PL011_CLOCK	38400000
+#define CONFIG_PL01x_PORTS	{ (void *)CFG_SERIAL0, (void *)CFG_SERIAL1, \
+				  (void *)CFG_SERIAL2 }
+#define CONFIG_CONS_INDEX	2
+#define CONFIG_BAUDRATE		115200
+#define CONFIG_SYS_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }
+
+#define CONFIG_MMC		1
+#define CONFIG_DOS_PARTITION	1
 
 #define CONFIG_CMD_MEMORY
 #define CONFIG_CMD_BOOTD
@@ -99,9 +99,9 @@
 #define CONFIG_CMD_SOURCE
 
 #ifdef CONFIG_USB_TTY
-#define CONFIG_BOOTDELAY		-1	/* disable autoboot */
+#define CONFIG_BOOTDELAY	-1	/* disable autoboot */
 #else
-#define CONFIG_BOOTDELAY		5
+#define CONFIG_BOOTDELAY	5
 #endif /* CONFIG_USB_TTY */
 
 #define CONFIG_BOOTARGS	"cachepolicy=writealloc root=/dev/mmcblk0p2 noinitrd rootfstype=ext3 rootdelay=1 init=/linuxrc console=ttyAMA2,115200n8 board_id=1 mem=96M@0 mem=128M@128M"
@@ -118,7 +118,7 @@
 	"stderr=serial,usbtty\0"
 
 #ifndef CONFIG_USB_TTY
-#define CONFIG_PREBOOT 			"mmc init 1;mmc_read_cmd_file"
+#define CONFIG_PREBOOT			"mmc init 1;mmc_read_cmd_file"
 #endif
 /*-----------------------------------------------------------------------
  * Miscellaneous configurable options
@@ -126,7 +126,7 @@
 
 #define CONFIG_SYS_LONGHELP			/* undef to save memory     */
 #define CONFIG_SYS_PROMPT	"U8500 $ "	/* Monitor Command Prompt   */
-#define CONFIG_SYS_CBSIZE	256	/* Console I/O Buffer Size  */
+#define CONFIG_SYS_CBSIZE	256		/* Console I/O Buffer Size  */
 
 /* Print Buffer Size */
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE \
@@ -136,15 +136,14 @@
 
 #undef	CONFIG_SYS_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 #define CONFIG_SYS_LOAD_ADDR		0x00100000 /* default load address */
-#define CONFIG_SYS_LOADS_BAUD_CHANGE 	1
+#define CONFIG_SYS_LOADS_BAUD_CHANGE	1
 
-#define CONFIG_SYS_HUSH_PARSER 		1
-#define CONFIG_SYS_PROMPT_HUSH_PS2 	"> "
+#define CONFIG_SYS_HUSH_PARSER		1
+#define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #define CONFIG_CMDLINE_EDITING
 
-
-#define CONFIG_SETUP_MEMORY_TAGS 	2
-#define CONFIG_INITRD_TAG 		1
+#define CONFIG_SETUP_MEMORY_TAGS	2
+#define CONFIG_INITRD_TAG		1
 #define CONFIG_CMDLINE_TAG		1	/* enable passing of ATAGs  */
 
 /*-----------------------------------------------------------------------
@@ -153,7 +152,6 @@
  * The stack sizes are set up in start.S using the settings below
  */
 
-#define CONFIG_STACKSIZE		(128*1024)	/* regular stack */
 #ifdef CONFIG_USE_IRQ
 #define CONFIG_STACKSIZE_IRQ		(4*1024)	/* IRQ stack */
 #define CONFIG_STACKSIZE_FIQ		(4*1024)	/* FIQ stack */
