@@ -3172,9 +3172,11 @@ smdkc100_config:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm_cortexa8 smdkc100 samsung s5pc1xx
 
 u8500_def_config \
+u8500_SRAM_config \
 u8500_noconsole_config \
 u8500_auto_config: unconfig
 	@mkdir -p $(obj)include
+	@mkdir -p $(obj)board/st/u8500
 	@ > $(obj)include/config.h
 	@if [ "$(findstring _def, $@)" ] ; then \
 		echo "#ifndef  CONFIG_SKIP_LOWLEVEL_INIT " >> $(obj)include/config.h ; \
@@ -3186,6 +3188,10 @@ u8500_auto_config: unconfig
                 echo "#define CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
                 echo "#endif"  >> $(obj)include/config.h ; \
                 echo "#define CONFIG_SILENT_CONSOLE 1" >>  $(obj)include/config.h ; \
+	fi; \
+	if [ "$(findstring _SRAM, $@)" ] ; then \
+		echo "#define CONFIG_BOOT_SRAM" >>  $(obj)include/config.h ; \
+		echo "TEXT_BASE = 0x40030000" >$(obj)board/st/u8500/config.tmp ; \
 	fi;
 	@$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st stw8500
 
