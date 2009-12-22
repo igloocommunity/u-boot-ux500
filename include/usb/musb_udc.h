@@ -1,15 +1,11 @@
 /*
- * (C) Copyright 2009 Texas Instruments Incorporated.
+ * Copyright (c) 2009 Wind River Systems, Inc.
+ * Tom Rix <Tom.Rix@windriver.com>
  *
- * Based on
- * u-boot OMAP1510 USB drivers (include/usbdcore_omap1510.h)
- *
- * Author: Diego Dompe (diego.dompe@ridgerun.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,12 +14,13 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
  */
-
 #ifndef __MUSB_UDC_H__
 #define __MUSB_UDC_H__
 
+#include <usbdevice.h>
 /* USB Function Module Registers */
 
 /*
@@ -93,27 +90,18 @@
 
 #define DEV_CONFIG_VALUE	1	/* Only one i.e. CDC */
 
+/* UDC level routines */
 void udc_irq(void);
-/* Flow control */
-void udc_set_nak(int epid);
-void udc_unset_nak(int epid);
-
-/* Higher level functions for abstracting away from specific device */
+void udc_set_nak(int ep_num);
+void udc_unset_nak(int ep_num);
 int udc_endpoint_write(struct usb_endpoint_instance *endpoint);
-
-int udc_init(void);
-
-void udc_enable(struct usb_device_instance *device);
-void udc_disable(void);
-
+void udc_setup_ep(struct usb_device_instance *device, unsigned int id,
+		  struct usb_endpoint_instance *endpoint);
 void udc_connect(void);
 void udc_disconnect(void);
-
+void udc_enable(struct usb_device_instance *device);
+void udc_disable(void);
 void udc_startup_events(struct usb_device_instance *device);
-void udc_setup_ep(struct usb_device_instance *device, unsigned int ep,
-			struct usb_endpoint_instance *endpoint);
-
-/* platform specific initialization */
-int udc_musb_platform_init(void);
+int udc_init(void);
 
 #endif /* __MUSB_UDC_H__ */
