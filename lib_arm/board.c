@@ -356,8 +356,10 @@ void start_armboot (void)
 	serial_initialize();
 #endif
 
+#ifdef CONFIG_CMD_NET
 	/* IP Address */
 	gd->bd->bi_ip_addr = getenv_IPaddr ("ipaddr");
+#endif
 
 	stdio_init ();	/* get the devices list going. */
 
