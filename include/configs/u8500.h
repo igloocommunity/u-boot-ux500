@@ -32,6 +32,8 @@
 #define CONFIG_U8500_ED		1
 #define CONFIG_L2_OFF		1
 
+#define CONFIG_BOOTTIME		/* enable boot time stamps */
+
 #define CONFIG_SYS_MEMTEST_START	0x00000000
 #define CONFIG_SYS_MEMTEST_END	0x1FFFFFFF
 #define CONFIG_SYS_HZ		1000		/* must be 1000 */
@@ -79,9 +81,15 @@
 #define CONFIG_BAUDRATE		115200
 #define CONFIG_SYS_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }
 
+/*
+ * Devices and file systems
+ */
 #define CONFIG_MMC		1
 #define CONFIG_DOS_PARTITION	1
 
+/*
+ * Commands
+ */
 #define CONFIG_CMD_MEMORY
 #define CONFIG_CMD_BOOTD
 #define CONFIG_CMD_BDI
@@ -100,9 +108,11 @@
 
 #ifdef CONFIG_USB_TTY
 #define CONFIG_BOOTDELAY	-1	/* disable autoboot */
-#else
-#define CONFIG_BOOTDELAY	5
 #endif /* CONFIG_USB_TTY */
+
+#ifndef CONFIG_BOOTDELAY
+#define CONFIG_BOOTDELAY	5
+#endif
 
 #define CONFIG_BOOTARGS	"cachepolicy=writealloc root=/dev/mmcblk0p2 noinitrd rootfstype=ext3 rootdelay=1 init=/linuxrc console=ttyAMA2,115200n8 board_id=1 mem=96M@0 mem=128M@128M"
 #define CONFIG_BOOTCOMMAND	"emmc_read 0x100000 0x14000000 0x200000; bootm 0x100000"

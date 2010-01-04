@@ -205,6 +205,15 @@ struct tag_memclk {
 	u32 fmemclk;
 };
 
+/* for automatic boot timing testcases */
+#define ATAG_BOOTTIME_UBOOT_INIT  0x41000403
+#define ATAG_BOOTTIME_LOAD_KERNEL 0x41000404
+#define ATAG_BOOTTIME_UBOOT_DONE  0x41000405
+
+struct tag_boottime {
+	u32 tick;
+};
+
 struct tag {
 	struct tag_header hdr;
 	union {
@@ -227,6 +236,11 @@ struct tag {
 		 * DC21285 specific
 		 */
 		struct tag_memclk	memclk;
+		/*
+		 * Boot time
+		 */
+		struct tag_boottime	boottime;
+
 	} u;
 };
 
