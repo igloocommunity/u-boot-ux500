@@ -1,6 +1,6 @@
 /*
 * (C) Copyright 2009
-* STEricsson, <www.stericsson.com>
+* ST-Ericsson, <www.stericsson.com>
 *
 * See file CREDITS for list of people who contributed to this
 * project.
@@ -32,7 +32,13 @@
 #define NOMADIK_BACKUPRAM1_BASE (NOMADIK_PER4_BASE + 0x01000)
 
 /* Power, Reset, Clock Management Unit */
-#define PRCMU_BASE	CFG_PRCMU_BASE
+/*
+ * SVA: Smart Video Accelerator
+ * SIA: Smart Imaging Accelerator
+ * SGA: Smart Graphic accelerator
+ * B2R2: Graphic blitter
+ */
+#define PRCMU_BASE	CFG_PRCMU_BASE	/* 0x80157000 for U8500 */
 #define PRCM_ARMCLKFIX_MGT_REG		(PRCMU_BASE + 0x000)
 #define PRCM_ACLK_MGT_REG		(PRCMU_BASE + 0x004)
 #define PRCM_SVAMMDSPCLK_MGT_REG	(PRCMU_BASE + 0x008)
@@ -51,16 +57,38 @@
 #define PRCM_PER6CLK_MGT_REG		(PRCMU_BASE + 0x03C)
 #define PRCM_PER7CLK_MGT_REG		(PRCMU_BASE + 0x040)
 #define PRCM_DMACLK_MGT_REG		(PRCMU_BASE + 0x074)
+#define PRCM_B2R2CLK_MGT_REG		(PRCMU_BASE + 0x078)
 
+#define PRCM_PLLSOC0_FREQ_REG		(PRCMU_BASE + 0x080)
+#define PRCM_PLLSOC1_FREQ_REG		(PRCMU_BASE + 0x084)
+#define PRCM_PLLARM_FREQ_REG		(PRCMU_BASE + 0x088)
+#define PRCM_PLLDDR_FREQ_REG		(PRCMU_BASE + 0x08C)
+#define PRCM_ARM_CHGCLKREQ_REG		(PRCMU_BASE + 0x114)
+
+#define PRCM_TCR			(PRCMU_BASE + 0x1C8)
+
+/* PLLs for clock management registers */
 enum {
 	GATED = 0,
-	PLLSOC0,	/* pllsw = 001 */
-	PLLSOC1,	/* pllsw = 010 */
-	PLLDDR,		/* pllsw = 100 */
+	PLLSOC0,	/* pllsw = 001, ffs() = 1 */
+	PLLSOC1,	/* pllsw = 010, ffs() = 2 */
+	PLLDDR,		/* pllsw = 100, ffs() = 3 */
+	PLLARM,
 };
 
-static const char *pll_name[4] = {"GATED", "SOC0", "SOC1", "DDR"};
-static uint32_t pll_khz[4];	/* use ffs(pllsw(reg)) as index */
+static struct pll_freq_regs {
+	int idx;	/* index fror pll_name and pll_khz arrays */
+	uint32_t addr;
+} pll_freq_regs[] = {
+	{PLLSOC0, PRCM_PLLSOC0_FREQ_REG},
+	{PLLSOC1, PRCM_PLLSOC1_FREQ_REG},
+	{PLLDDR, PRCM_PLLDDR_FREQ_REG},
+	{PLLARM, PRCM_PLLARM_FREQ_REG},
+	{0, 0},
+};
+
+static const char *pll_name[5] = {"GATED", "SOC0", "SOC1", "DDR", "ARM"};
+static uint32_t pll_khz[5];	/* use ffs(pllsw(reg)) as index for 0..3 */
 
 static struct clk_mgt_regs {
 	uint32_t addr;
@@ -85,6 +113,7 @@ static struct clk_mgt_regs {
 	{PRCM_PER6CLK_MGT_REG, 0x126, "PER6"},	/* ena, SOC0/6, 133 MHz */
 	{PRCM_PER7CLK_MGT_REG, 0x128, "PER7"},	/* ena, SOC0/8, 100 MHz */
 	{PRCM_DMACLK_MGT_REG, 0x125, "DMA"},	/* ena, SOC0/5, 160 MHz */
+	{PRCM_B2R2CLK_MGT_REG, 0x025, "B2R2"},	/* dis, SOC0/5, 160 MHz */
 	{0, 0, NULL},
 };
 
@@ -96,8 +125,8 @@ static struct clk_mgt_regs maja_clk_regs[] = {
 	{0, 0, NULL},
 };
 
-extern void (*handler)();
-extern void secondary_wfe();
+extern void (*handler)(void);
+extern void secondary_wfe(void);
 
 void wake_up_other_cores(void)
 {
@@ -126,8 +155,8 @@ int board_init(void)
 {
     gd->bd->bi_arch_number = 0x1A4;
     gd->bd->bi_boot_params = 0x00000100;
-    //enable the timers in PRCMU reg
-    *((volatile unsigned int *)(CFG_PRCMU_BASE + 0x1C8)) = 0x20000;
+    /* MTU timer clock always enabled (not clocked) */
+    writel(0x20000, PRCM_TCR);
     icache_enable();
     gpio_init();
 
@@ -174,7 +203,7 @@ unsigned int addr_vall_arr[] = {
 0x8012E004, 0x0FFC0000, // GPIO ALT FUNC for SD
 0x8012E020, 0x60000000, // GPIO ALT FUNC for SD
 0x8012E024, 0x60000000, // GPIO ALT FUNC for SD
-0x801571E4, 0x0000000C, // PRCMU settings for B2R2
+0x801571E4, 0x0000000C, // PRCMU settings for B2R2, PRCM_APE_RESETN_SET_REG
 0x80157024, 0x00000130, // PRCMU settings for EMMC/SD
 0xA03FF000, 0x00000003, // USB
 0xA03FF008, 0x00000001, // USB
@@ -204,7 +233,7 @@ static void init_regs(void)
 /*
  * get_pll_freq_khz - return PLL frequency in kHz
  */
-static get_pll_freq_khz(uint32_t inclk_khz, uint32_t freq_reg)
+static uint32_t get_pll_freq_khz(uint32_t inclk_khz, uint32_t freq_reg)
 {
 	uint32_t idf, ldf, odf, seldiv, phi;
 
@@ -230,25 +259,29 @@ static get_pll_freq_khz(uint32_t inclk_khz, uint32_t freq_reg)
 
 int do_clkinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	uint32_t inclk_khz = 38400;	/* 38.4 MHz */
+	uint32_t inclk_khz;
 	uint32_t reg, phi;
-	uint32_t val;
 	uint32_t clk_khz;
 	unsigned int clk_sel;
-	struct clk_mgt_regs *regs = clk_mgt_regs;
+	struct clk_mgt_regs *clks = clk_mgt_regs;
+	struct pll_freq_regs *plls = pll_freq_regs;
 
-	/* DDR PLL */
-	reg =  *(uint32_t *)0x8015708C;
-	phi = get_pll_freq_khz(inclk_khz, reg);
-	pll_khz[PLLDDR] = phi;
-	printf("\nDDR PLL out frequency: %d.%d Mhz\n",
-			phi/1000, phi % 1000);
-	/* ARM PLL */
-	reg =  *(uint32_t *)0x80157088;
-	phi = get_pll_freq_khz(inclk_khz, reg);
-	printf("ARM PLL out frequency: %d.%d Mhz\n",
-			phi/1000, phi % 1000);
-	reg =  *(uint32_t *)0x80157114; /* PRCM_ARM_CHGCLKREQ_REG */
+	/*
+	 * Go through list of PLLs.
+	 * Initialise pll out frequency array (pll_khz) and print frequency.
+	 */
+	inclk_khz = 38400;	/* 38.4 MHz */
+	while (plls->addr) {
+		reg = readl(plls->addr);
+		phi = get_pll_freq_khz(inclk_khz, reg);
+		pll_khz[plls->idx] = phi;
+		printf("%s PLL out frequency: %d.%d Mhz\n",
+				pll_name[plls->idx], phi/1000, phi % 1000);
+		plls++;
+	}
+
+	/* check ARM clock source */
+	reg = readl(PRCM_ARM_CHGCLKREQ_REG);
 	printf("A9 running on ");
 	if (reg & 1)
 		printf("external clock");
@@ -256,39 +289,25 @@ int do_clkinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		printf("ARM PLL");
 	printf("\n");
 
-	/* SOC0 Pll */
-	reg =  *(uint32_t *)0x80157080;
-	phi = get_pll_freq_khz(inclk_khz, reg);
-	pll_khz[PLLSOC0] = phi;
-	printf("SOC0 PLL out frequency: %d.%d Mhz\n",
-			phi/1000, phi % 1000);
-
-	/* SOC1 Pll */
-	reg =  *(uint32_t *)0x80157084;
-	phi = get_pll_freq_khz(inclk_khz, reg);
-	pll_khz[PLLSOC1] = phi;
-	printf("SOC1 PLL out frequency: %d.%d Mhz\n",
-			phi/1000, phi % 1000);
-	printf("\n");
-
 	/* go through list of clk_mgt_reg */
-	while (regs->addr) {
-		val = readl(regs->addr);
+	printf("\n%19s %9s %7s %9s  enabled\n",
+			"name(addr)", "value", "PLL", "CLK[MHz]");
+	while (clks->addr) {
+		reg = readl(clks->addr);
 		/* convert bit position into array index */
-		clk_sel = ffs((val >> 5) & 0x7);	/* PLLSW[2:0] */
-		printf("%s(%08x): %08x", regs->descr, regs->addr, val);
-		printf(", PLL %s", pll_name[clk_sel]);
-		if (val & 0x200)
+		clk_sel = ffs((reg >> 5) & 0x7);	/* PLLSW[2:0] */
+		printf("%9s(%08x): %08x", clks->descr, clks->addr, reg);
+		printf(", %6s", pll_name[clk_sel]);
+		if (reg & 0x200)
 			clk_khz = 38400;	/* CLK38 is set */
-		else if ((val & 0x1f) == 0)
+		else if ((reg & 0x1f) == 0)
 			/* ARMCLKFIX_MGT is 0x120, e.g. div = 0 ! */
 			clk_khz = 0;
 		else
-			clk_khz = pll_khz[clk_sel] / (val & 0x1f);
-		printf(", CLK %d.%d MHz", clk_khz / 1000, clk_khz % 1000);
-		printf(", %s", (val & 0x100) ? "ena" : "dis");
-		printf("\n");
-		regs++;
+			clk_khz = pll_khz[clk_sel] / (reg & 0x1f);
+		printf(", %4d.%03d", clk_khz / 1000, clk_khz % 1000);
+		printf(", %s\n", (reg & 0x100) ? "ena" : "dis");
+		clks++;
 	}
 
 	return 0;
@@ -315,6 +334,8 @@ int do_clkmaja(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		writel(regs->val, regs->addr);
 		regs++;
 	}
+
+	return 0;
 }
 
 U_BOOT_CMD(
