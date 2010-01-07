@@ -186,12 +186,12 @@ int dram_init(void)
 
 unsigned int addr_vall_arr[] = {
 0x8011F000, 0x0000FFFF, // Clocks for HSI  TODO Enable reqd only
-0x8011F008, 0x00001C44, // Clocks for HSI  TODO Enable reqd only
+0x8011F008, 0x00001CFF, // Clocks for HSI  TODO Enable reqd only
 0x8000F000, 0x00007FFF, // Clocks for I2C  TODO Enable reqd only
 0x8000F008, 0x00007FFF, // Clocks for I2C  TODO Enable reqd only
 0x8000E120, 0x003C0000, // GPIO for I2C/SD
 0x8000E124, 0x00000000, // GPIO for I2C/SD
-0x80157020, 0x00000130, // I2C 48MHz clock
+0x80157020, 0x00000150, // I2C 48MHz clock
 0x8012F000, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
 0x8012F008, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
 0xA03DF000, 0x0000000D, // Clock for MTU Timers
@@ -199,6 +199,7 @@ unsigned int addr_vall_arr[] = {
 0x8011E004, 0x0000FFE0, // GPIO ALT FUNC for EMMC
 0x8011E020, 0x0000FFE0, // GPIO ALT FUNC for EMMC
 0x8011E024, 0x00000000, // GPIO ALT FUNC for EMMC
+0x8012E000, 0x20000000, // GPIO ALT FUNC for UART
 0x8012E00C, 0x00000000, // GPIO ALT FUNC for SD
 0x8012E004, 0x0FFC0000, // GPIO ALT FUNC for SD
 0x8012E020, 0x60000000, // GPIO ALT FUNC for SD

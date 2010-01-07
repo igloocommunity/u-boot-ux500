@@ -28,10 +28,14 @@
 #include "mmc_utils.h"
 #include "i2c.h"
 
+#define HREF_BOARD_ID   ('1')
+#define MOP500_BOARD_ID ('0')
+char  Bootargs_buf[512];
+
 #ifdef CONFIG_CMD_FAT
 #include <part.h>
 #include <fat.h>
-#endif 
+#endif
 
 #define LOOP(x) {int i;for(i=0;i<1000;i++);}
 
@@ -148,7 +152,8 @@ static void config_extended_gpio(void)
   t_i2c_error error_i2c;
   u8 read_data = 0;
   u8 dataArr[2]={0x06,0x06};
-  
+  char board_id = HREF_BOARD_ID;
+
   I2C_SetBaseAddress(I2C0, CFG_I2C0_BASE);
   error_i2c = I2C_Init(I2C0, CFG_I2C0_BASE);
  
@@ -203,6 +208,7 @@ static void config_extended_gpio(void)
 		LOOP(5);
 		error_status = I2C_WriteSingleData(I2C0, I2C0_SLAVE_ADDRESS, I2C_BYTE_INDEX, 0x83, 0x0C);
 		LOOP(5);
+		board_id = MOP500_BOARD_ID;
 	    }
 	else if(read_data==0x03) /* If chip is = 0x3,the platform is HREF, so config Toshiba controller*/
 		{
@@ -216,15 +222,38 @@ static void config_extended_gpio(void)
 		
  		error_status = I2C_WriteMultipleData(I2C0, I2C0_SLAVE_ADDRESS, I2C_BYTE_INDEX, 0xC4, dataArr,2);
 		LOOP(5);
+		board_id = HREF_BOARD_ID;
  		if(error_status)
  			printf("Error in I2C_WriteMultipleData error = %d",error_status);
 		
  	}
 	else
-		printf("\nunknown platform: chip ID = %x\n", read_data);	
+		printf("\nunknown platform: chip ID = %x\n", read_data);
+
+	/* Now modify bootargs to save the board_id, required for automatic platform detection */
+	char * bootargs = getenv("bootargs");
+	if(sizeof(Bootargs_buf) < strlen(bootargs)) {
+		printf("ERROR: Insufficient temp buffer, bootargs not modified");
+		return;
+	}
+	strcpy(Bootargs_buf, bootargs);
+	bootargs = strstr (Bootargs_buf, "board_id=");
+	if(bootargs){
+	/*board_id parameter already present , modify correct value*/
+		bootargs[9] = board_id;
+	}
+	else {
+	 /*board_id parameter not present , append board_id with proper value*/
+		strcat(Bootargs_buf, " board_id=1 ");
+		/*point to the last character of string*/
+		bootargs = Bootargs_buf + strlen(Bootargs_buf) -2;
+		*bootargs = board_id;
+	}
+	/*Now save the new bootargs*/
+	setenv("bootargs", Bootargs_buf);
+	saveenv();
+	//printf("Bootargs after platform detection:\n%s\n", getenv("bootargs"));
 	return;
- 	
-	
 }
 
 
@@ -287,9 +316,9 @@ static int init_mmc(void)
     }    
 
     gpio_base_address = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
-    gpio_base_address -> gpio_dats |= 0x1FFC0000;
-    gpio_base_address -> gpio_pdis &= ~0x1FFC0000; 
-      
+    gpio_base_address -> gpio_dats |= 0xFFC0000;
+    gpio_base_address -> gpio_pdis &= ~0xFFC0000;
+
 	if (mmc_hw_init() != 0) {
 		printf("mmc_init: hw init failed\n");
 	}
@@ -306,7 +335,7 @@ static int init_mmc(void)
 	mmc_dev.removable = 0;
 	mmc_dev.block_read = mmc_block_read;
 #ifdef CONFIG_CMD_FAT
-	if (fat_register_device(&mmc_dev, 1) != 0) {    	
+	if (fat_register_device(&mmc_dev, 1) != 0) {
 		printf("mmc_init: could not register as FAT device\n");
 	}
 #endif /* CONFIG_CMD_FAT */

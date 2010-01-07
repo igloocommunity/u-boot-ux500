@@ -430,6 +430,62 @@ end:
     return error;
 }
 
+t_mmc_error mmc_select_n_switch ()
+{
+    t_mmc_error                   error = MMC_OK;
+    t_mmc_command_control         commcontrol;
+    t_mmc_clock_control           clockcontrol;
+    u32                           response;
+    u8                            cardno = 1;
+
+    commcontrol.IsRespExpected  = TRUE;
+    commcontrol.IsLongResp      = FALSE;
+    commcontrol.IsInterruptMode = FALSE;
+    commcontrol.IsPending       = FALSE;
+    commcontrol.cmdpath         = MMC_ENABLE;
+
+    // send command for selecting the card
+    if (cardno != selected_card)
+    {
+        error   = mmc_sendcommand       (MMC_SEL_DESEL_CARD, t_mmc_rel_addr, commcontrol);
+        error   = mmc_cmdresp145error_2 (MMC_SEL_DESEL_CARD);
+        if (error != MMC_OK)
+        {
+            goto end;
+        }
+        else
+        {
+            selected_card = cardno;
+        }
+    }
+    error       = mmc_getresponse (MMC_SHORT_RESP, &response);
+    if (response & 0x02000000)
+    {
+        error =  MMC_LOCK_UNLOCK_FAILED;
+        goto end;
+    }
+    /*
+    error = mmc_sendcommand (MMC_APP_CMD, 0x00000000, commcontrol);
+    error = mmc_cmdresp145error_2(MMC_APP_CMD);
+    error = mmc_sendcommand (6, 0x2, commcontrol);
+    error = mmc_cmdresp145error_2(6);
+    if (error != MMC_OK)
+    {
+        goto end;
+    }
+    clockcontrol.pwrsave= MMC_DISABLE;
+    clockcontrol.bypass = MMC_DISABLE;
+    clockcontrol.widebus= MMC_ENABLE;
+    error = mmc_configclockcontrol (clockcontrol);
+    if (error != MMC_OK)
+    {
+        goto end;
+    }
+    */
+end:
+    return error;
+}
+
 t_mmc_error mmc_readcid (u32 * CID)
 {
     t_mmc_error                   error = MMC_OK;
@@ -522,6 +578,16 @@ t_mmc_error mmc_read_file (char *filename, u32 address, u32 * FileSize)
         result = FAIL;
         goto end;
     }
+
+    // Select card and switch to 4-Bit, TODO HS if possible
+    response = mmc_select_n_switch ();
+
+    if (response != MMC_OK)
+    {
+        printf ("Error while select or switching to 4-bit/HS\n");
+        goto end;
+    }
+
     // Read the MBR
     response = mmc_readblock (1, 0, (u32 *) sector, 512, MMCPOLLING);
 

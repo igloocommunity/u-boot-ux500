@@ -820,25 +820,39 @@ t_mmc_error mmc_initializeCards(u8 card_num)
 
         	//rca++;
         	error = MMC_OK; //All cards get intialized
-        	card_initialized = TRUE;	
-		/*        
-        	t_mmc[card_num]->mmc_Argument = (u32) 0x03B70100;
-        	t_mmc[card_num]->mmc_Command =
-            		APP_SD_SET_BUSWIDTH | RespExpected | LongResponse | CmdPathEnable;
+        	card_initialized = TRUE;
+
+		if (card_num != selected_card)
+		{
+			t_mmc[card_num]->mmc_Argument = card_array[card_num].RCA;
+			t_mmc[card_num]->mmc_Command = SEL_DESEL_CARD
+                                    | RespExpected | CmdPathEnable;
+			error = mmc_cmdresp145error(SEL_DESEL_CARD, card_num);
+
+			if (error != MMC_OK)
+			{
+				printf("SEL_DESEL_CARD ::error=0x%x \n", error);
+				return error;
+			}
+			else
+				selected_card = card_num;
+		}
+
+		t_mmc[card_num]->mmc_Argument = (u32) (0x03B70201);
+		t_mmc[card_num]->mmc_Command =
+			APP_SD_SET_BUSWIDTH | RespExpected | CmdPathEnable;
 
 	        error = mmc_cmdresp2error(card_num);
-        	if (error != MMC_OK) 
-        	{
-            		printf("emmc card init response for CMD6 error \n");
-            		return error;
-        	}
-		*/
+		if (error != MMC_OK)
+		{
+			printf("emmc card init response for CMD6 error \n");
+			return error;
+		}
 	}
-	t_mmc[card_num]->mmc_Power = 0x3;   /* PUSHPULL mode after intialization */
-    	t_mmc[card_num]->mmc_Clock = 0x4100;    //(t_mmc0->mmc_Clock & 0xFFFFFF00) | 0x00000002;
+	t_mmc[card_num]->mmc_Power = 0x3;
+	t_mmc[card_num]->mmc_Clock = 0x7500;
 
-    	return error;
-
+	return error;
 }
 
 /****************************************************************************/

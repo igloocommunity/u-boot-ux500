@@ -510,7 +510,7 @@ reset_cpu:
 #if defined CONFIG_U8500
         ldr r0, =CFG_PRCMU_BASE
         ldr r1, =0x1
-        str r1, [r0, #0x1F0]
+        str r1, [r0, #0x228]
 #else
 	ldr	r1, rstctl			@ get addr for global reset
 						@ reg

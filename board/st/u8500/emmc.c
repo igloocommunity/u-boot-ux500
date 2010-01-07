@@ -185,8 +185,8 @@ int emmc_write_pib(void)
     emmc_last_sector[0x1F8] = 0x35;
     emmc_last_sector[0x1F9] = 0x00;
     emmc_last_sector[0x1FA] = 0x00;
-    emmc_last_sector[0x1FB] = 0x00;
-    emmc_last_sector[0x1FC] = 0xC0;
+    emmc_last_sector[0x1FB] = 0xA0;
+    emmc_last_sector[0x1FC] = 0xB9;
     emmc_last_sector[0x1FD] = 0x00;
     emmc_last_sector[0x1FE] = 0x55;
     emmc_last_sector[0x1FF] = 0xAA;
