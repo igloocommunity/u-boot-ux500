@@ -165,6 +165,9 @@ static void plat_mp_up(unsigned long bootpg)
 	e = find_law(bootpg);
 	out_be32(&ccm->bstrar, LAW_EN | e.trgt_id << 20 | LAW_SIZE_4K);
 
+	/* readback to sync write */
+	in_be32(&ccm->bstrar);
+
 	/* disable time base at the platform */
 	out_be32(&rcpm->ctbenrl, cpu_up_mask);
 
@@ -309,7 +312,7 @@ void setup_mp(void)
 		disable_tlb(i);
 
 		set_tlb(1, CONFIG_BPTR_VIRT_ADDR, bootpg, /* tlb, epn, rpn */
-			MAS3_SX|MAS3_SW|MAS3_SR, MAS2_I, /* perms, wimge */
+			MAS3_SX|MAS3_SW|MAS3_SR, MAS2_I|MAS2_G, /* perms, wimge */
 			0, i, BOOKE_PAGESZ_4K, 1); /* ts, esel, tsize, iprot */
 
 		memcpy((void *)CONFIG_BPTR_VIRT_ADDR, (void *)fixup, 4096);
