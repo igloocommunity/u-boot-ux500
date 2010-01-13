@@ -3150,6 +3150,7 @@ smdkc100_config:	unconfig
 u8500_def_config \
 u8500_SRAM_config \
 u8500_noconsole_config \
+u8500_udc_config \
 u8500_auto_config: unconfig
 	@mkdir -p $(obj)include
 	@mkdir -p $(obj)board/st/u8500
@@ -3164,6 +3165,8 @@ u8500_auto_config: unconfig
                 echo "#define CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
                 echo "#endif"  >> $(obj)include/config.h ; \
                 echo "#define CONFIG_SILENT_CONSOLE 1" >>  $(obj)include/config.h ; \
+	elif [ "$(findstring _udc, $@)" ] ; then \
+                echo "#define CONFIG_USB_TTY 1" >>  $(obj)include/config.h ; \
 	fi; \
 	if [ "$(findstring _SRAM, $@)" ] ; then \
 		echo "#define CONFIG_BOOT_SRAM" >>  $(obj)include/config.h ; \
