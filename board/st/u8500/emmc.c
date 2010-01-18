@@ -38,24 +38,24 @@ int emmc_init(u8 card_num)
 {
     t_mmc_error mmc_error;
     t_mmc_error response;
-    gpio_error gpioerror;    
+    gpio_error gpioerror;
     int error;
 
 #ifndef CONFIG_U8500_V1
 /* Initialize the base address of eMMC */
     mmc_error = mmc_init(card_num, CFG_EMMC_BASE);
 
-    if (MMC_OK != mmc_error) 
+    if (MMC_OK != mmc_error)
     {
         printf("emmc_init() %d \n", mmc_error);
         goto end;
     }
-    
+
     /* Initialize the gpio alternate function for eMMC */
-    struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_6_BASE);    
+    struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_6_BASE);
     p_gpio_register -> gpio_dats |= 0x0000FFE0;
     p_gpio_register -> gpio_pdis &= ~0x0000FFE0;
-    
+
     //enable the alternate function of EMMC
     gpioerror = gpio_altfuncenable(GPIO_ALT_EMMC, "EMMC");
     if(gpioerror != GPIO_OK)
@@ -68,7 +68,7 @@ int emmc_init(u8 card_num)
 /* Initialize the base address of PoP eMMC */
     mmc_error = mmc_init(card_num, CFG_POP_EMMC_BASE);
 
-    if (MMC_OK != mmc_error) 
+    if (MMC_OK != mmc_error)
     {
         printf("emmc_init() %d \n", mmc_error);
         goto end;
@@ -83,25 +83,25 @@ int emmc_init(u8 card_num)
 #endif
     //Power-on the controller
     response = mmc_poweron(card_num);
-    if (response != MMC_OK) 
+    if (response != MMC_OK)
     {
-    	 printf("Error in eMMC power on, response is %d\n",response);
-         goto end;     
+	 printf("Error in eMMC power on, response is %d\n",response);
+         goto end;
     }
     // Initialise the cards,get CID and CSD on the bus
     response = mmc_initializeCards(card_num);
 
-    if (response != MMC_OK) 
+    if (response != MMC_OK)
     {
         printf(" Error in eMMC initialization\n");
         goto end;
     }
-    
+
     error = emmc_write_pib();
     if(error)
 	    printf("PIB info writing into eMMC failed\n");
     printf("eMMC done\n");
-    
+
     return 0;
 
 end:
@@ -190,8 +190,8 @@ int emmc_write_pib(void)
     emmc_last_sector[0x1FD] = 0x00;
     emmc_last_sector[0x1FE] = 0x55;
     emmc_last_sector[0x1FF] = 0xAA;
-    
-/*  HACK required for HREF board as erase block size = 512KB */  
+
+/*  HACK required for HREF board as erase block size = 512KB */
 /*
     mmc_error = mmc_erase(card_num, 0x0, 0x1FF);
     if (mmc_error != MMC_OK) {
@@ -225,144 +225,144 @@ int emmc_erase(u32 start, u32 end)
 
 int emmc_read(u32 block_offset, u32 read_buffer, u32 filesize)
 {
-    	t_mmc_error mmc_error;
-    	u32 remaining;
-    	u8 card_num = 4;
-    	u8 *mem_address = (u8 *) read_buffer;    
-    	u32 n=filesize,blocks;
- 
-    	remaining = filesize;
+	t_mmc_error mmc_error;
+	u32 remaining;
+	u8 card_num = 4;
+	u8 *mem_address = (u8 *) read_buffer;
+	u32 n=filesize,blocks;
 
-    	printf(" eMMC read start filesize=0x%x \n", filesize);    	
+	remaining = filesize;
 
-    	blocks = (n%512==0)?(n/512):(n/512)+1;   	
-    	
-    	while(blocks>=8)
-    	{    		
-    		mmc_error = mmc_readblocks(card_num, block_offset, (u32 *) mem_address,	512, 8);
-        	if (mmc_error != MMC_OK) 
-        	{
-        		printf(" eMMC read blocks failed \n");
-            		return 1;
-        	}
+	printf(" eMMC read start filesize=0x%x \n", filesize);
 
-        	block_offset += 4096;
-        	mem_address += 4096;
-        	blocks -=8;
-        	remaining -= 4096;        	
+	blocks = (n%512==0)?(n/512):(n/512)+1;
+
+	while(blocks>=8)
+	{
+		mmc_error = mmc_readblocks(card_num, block_offset, (u32 *) mem_address,	512, 8);
+		if (mmc_error != MMC_OK)
+		{
+			printf(" eMMC read blocks failed \n");
+			return 1;
+		}
+
+		block_offset += 4096;
+		mem_address += 4096;
+		blocks -=8;
+		remaining -= 4096;
         }
         if(blocks)
-    	{    		
-    		mmc_error = mmc_readblocks(card_num, block_offset, (u32 *) mem_address,	512, blocks);
-        	if (mmc_error != MMC_OK) 
-        	{
-        		printf(" eMMC read blocks failed \n");
-        		return 1;
-        	}        	    	
+	{
+		mmc_error = mmc_readblocks(card_num, block_offset, (u32 *) mem_address,	512, blocks);
+		if (mmc_error != MMC_OK)
+		{
+			printf(" eMMC read blocks failed \n");
+			return 1;
+		}
         }
-    
-     	printf(" eMMC read done \n");
-    	return 0;
+
+	printf(" eMMC read done \n");
+	return 0;
 }
 
 int emmc_write(u32 block_offset, u32 write_buffer, u32 filesize)
 {
-    	t_mmc_error mmc_error;
-    	u32 remaining;
-    	u8 card_num = 4;
-    	u8 *mem_address = (u8 *) write_buffer;
-    	u32 n=filesize,blocks;
+	t_mmc_error mmc_error;
+	u32 remaining;
+	u8 card_num = 4;
+	u8 *mem_address = (u8 *) write_buffer;
+	u32 n=filesize,blocks;
 
-    	remaining = filesize;
+	remaining = filesize;
 
-    	printf(" eMMC write start filesize=0x%x \n", filesize);    	
-    
-    	blocks = (n%512==0)?(n/512):(n/512)+1;    	        
-    	while(blocks>=8)
-    	{    		
-    		mmc_error = mmc_writeblocks(card_num, block_offset, (u32 *) mem_address,512, 8);
-        	if (mmc_error != MMC_OK) 
-        	{
-        		printf(" eMMC write blocks failed \n");
-            		return 1;
-        	}
+	printf(" eMMC write start filesize=0x%x \n", filesize);
 
-        	block_offset += 4096;
-        	mem_address += 4096;
-        	blocks -=8;
-        	remaining -= 4096;        	
+	blocks = (n%512==0)?(n/512):(n/512)+1;
+	while(blocks>=8)
+	{
+		mmc_error = mmc_writeblocks(card_num, block_offset, (u32 *) mem_address,512, 8);
+		if (mmc_error != MMC_OK)
+		{
+			printf(" eMMC write blocks failed \n");
+			return 1;
+		}
+
+		block_offset += 4096;
+		mem_address += 4096;
+		blocks -=8;
+		remaining -= 4096;
         }
         if(blocks)
-    	{
-    		
-    		mmc_error = mmc_writeblocks(card_num, block_offset, (u32 *) mem_address,512, blocks);
-        	if (mmc_error != MMC_OK) 
-        	{
-        		printf(" eMMC write blocks failed \n");
-        		return 1;
-        	}       	
-        	
-        }	
-    
-    	printf(" eMMC write done \n");
-    	return 0;
+	{
+
+		mmc_error = mmc_writeblocks(card_num, block_offset, (u32 *) mem_address,512, blocks);
+		if (mmc_error != MMC_OK)
+		{
+			printf(" eMMC write blocks failed \n");
+			return 1;
+		}
+
+        }
+
+	printf(" eMMC write done \n");
+	return 0;
 }
 
 /*
  * command line commands
  */
 #ifdef CONFIG_CMD_EMMC
-int do_emmc_erase (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+int do_emmc_erase(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-    	u32       start_address;
-    	u32       end_address;    	
-    	int       load_result = 1;
-    	u32       error_name  = 0;
+	u32       start_address;
+	u32       end_address;
+	int       load_result = 1;
+	u32       error_name  = 0;
 
-    	start_address  = simple_strtoul (argv[1],0,16);
-    	end_address  = simple_strtoul (argv[2],0,16);        
-	
+	start_address  = simple_strtoul(argv[1],0,16);
+	end_address  = simple_strtoul(argv[2],0,16);
+
 	printf("emmc_erase :: start address = %x end_address=0x%x\n",start_address,end_address);
-            
+
         load_result      = emmc_erase(start_address,end_address);
         if (load_result != 0)
         {
             error_name   = (unsigned long) (-load_result);
-            printf("emmc_erase error : failed  \n");         
+            printf("emmc_erase error : failed  \n");
         }
-        return(0);    
+        return(0);
 }
 
 U_BOOT_CMD(
 	emmc_erase,	3,	0,	do_emmc_erase,
 	"- erase the eMMC flash \n",
 	"start_address- start address of the eMMC block\n"
-	"end_address- end address of the eMMC block\n"	
+	"end_address- end address of the eMMC block\n"
 );
 
-int do_emmc_read (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+int do_emmc_read(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-    	u32       ram_address;
-    	u32       block_offset;
-    	u32       filesize;    	
-    	int       load_result = 1;
-    	u32       error_name  = 0;
+	u32       ram_address;
+	u32       block_offset;
+	u32       filesize;
+	int       load_result = 1;
+	u32       error_name  = 0;
 
-    	ram_address  	= simple_strtoul (argv[1],0,16);
-        block_offset 	= simple_strtoul (argv[2],0,16);
-        filesize  	= simple_strtoul (argv[3],0,16);
-	
+	ram_address	= simple_strtoul (argv[1],0,16);
+        block_offset	= simple_strtoul (argv[2],0,16);
+        filesize	= simple_strtoul (argv[3],0,16);
+
 	boottime_tag("load_image");
 	printf("emmc_read :: ram address = 0x%x block address=0x%x \n",ram_address,block_offset);
-            
+
         load_result      = emmc_read(block_offset,ram_address,filesize);
         if (load_result != 0)
         {
 		boottime_remove_last();
             error_name   = (unsigned long) (-load_result);
-            printf("emmc_read error : in reading data from eMMC block \n");         
+            printf("emmc_read error : in reading data from eMMC block \n");
         }
-        return(0);    
+        return(0);
 }
 
 U_BOOT_CMD(
@@ -373,27 +373,27 @@ U_BOOT_CMD(
 	"filesize - size of the file \n"
 );
 
-int do_emmc_write (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+int do_emmc_write(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-    	u32       ram_address;
-    	u32       block_offset;
-    	u32       filesize;    	
-    	int       load_result = 1;
-    	u32       error_name  = 0;
+	u32       ram_address;
+	u32       block_offset;
+	u32       filesize;
+	int       load_result = 1;
+	u32       error_name  = 0;
 
-    	ram_address  	= simple_strtoul (argv[1],0,16);
-        block_offset 	= simple_strtoul (argv[2],0,16);
-        filesize  	= simple_strtoul (argv[3],0,16);
-	
+	ram_address	= simple_strtoul (argv[1],0,16);
+        block_offset	= simple_strtoul (argv[2],0,16);
+        filesize	= simple_strtoul (argv[3],0,16);
+
 	printf("emmc_write :: ram address = %x block address=0x%x \n",ram_address,block_offset);
-            
+
         load_result      = emmc_write(block_offset,ram_address,filesize);
         if (load_result != 0)
         {
             error_name   = (unsigned long) (-load_result);
-            printf("emmc_read error : in writing data into eMMC block \n");         
+            printf("emmc_read error : in writing data into eMMC block \n");
         }
-        return(0);    
+        return(0);
 }
 
 U_BOOT_CMD(

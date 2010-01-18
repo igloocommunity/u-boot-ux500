@@ -107,7 +107,7 @@ t_mmc_error mmc_enable ()
     IS_SD_CARD = 0;
 
     selected_card       = 0;
-   
+
     t_mmc0->mmc_Power = 0x1BF;
     t_mmc0->mmc_Clock = 0x41FF;
 
@@ -297,7 +297,7 @@ t_mmc_error mmc_readblock (u8 cardno, u32 addr, u32 * readbuff, u16 blocksize, t
     error = mmc_settransferdirection    (MMC_READ   );
     error = mmc_settransfertype         (MMC_BLOCK  );
     error = mmc_setdatapath             (MMC_ENABLE);
-    //t_mmc0->mmc_DataCtrl 	|=             (ReadDir & ~StreamMode) | DataPathEnable;
+    //t_mmc0->mmc_DataCtrl	|=             (ReadDir & ~StreamMode) | DataPathEnable;
     error = mmc_sendcommand             (MMC_READ_SINGLE_BLOCK, addr, commcontrol);
     error = mmc_cmdresp145error_2       (MMC_READ_SINGLE_BLOCK);
     if (error != MMC_OK)
@@ -430,11 +430,11 @@ end:
     return error;
 }
 
-t_mmc_error mmc_select_n_switch ()
+t_mmc_error mmc_select_n_switch(void)
 {
     t_mmc_error                   error = MMC_OK;
     t_mmc_command_control         commcontrol;
-    t_mmc_clock_control           clockcontrol;
+    /* t_mmc_clock_control           clockcontrol; */
     u32                           response;
     u8                            cardno = 1;
 
@@ -447,8 +447,8 @@ t_mmc_error mmc_select_n_switch ()
     // send command for selecting the card
     if (cardno != selected_card)
     {
-        error   = mmc_sendcommand       (MMC_SEL_DESEL_CARD, t_mmc_rel_addr, commcontrol);
-        error   = mmc_cmdresp145error_2 (MMC_SEL_DESEL_CARD);
+        error = mmc_sendcommand(MMC_SEL_DESEL_CARD, t_mmc_rel_addr, commcontrol);
+        error = mmc_cmdresp145error_2(MMC_SEL_DESEL_CARD);
         if (error != MMC_OK)
         {
             goto end;
@@ -458,12 +458,13 @@ t_mmc_error mmc_select_n_switch ()
             selected_card = cardno;
         }
     }
-    error       = mmc_getresponse (MMC_SHORT_RESP, &response);
+    error = mmc_getresponse(MMC_SHORT_RESP, &response);
     if (response & 0x02000000)
     {
         error =  MMC_LOCK_UNLOCK_FAILED;
         goto end;
     }
+    /* XXX: what is this, why is it commented out, why is it here at all? */
     /*
     error = mmc_sendcommand (MMC_APP_CMD, 0x00000000, commcontrol);
     error = mmc_cmdresp145error_2(MMC_APP_CMD);
@@ -545,7 +546,7 @@ t_mmc_error mmc_read_file (char *filename, u32 address, u32 * FileSize)
     //                                                //
     ////////////////////////////////////////////////////
 
-    gpio_altfuncenable(GPIO_ALT_SD_CARD0, "MMC");   
+    gpio_altfuncenable(GPIO_ALT_SD_CARD0, "MMC");
     // Power-on the controller
     response = mmc_enable ();
 
@@ -795,170 +796,9 @@ t_mmc_error mmc_read_file (char *filename, u32 address, u32 * FileSize)
     }
 
 end:
-    gpio_altfuncdisable(GPIO_ALT_SD_CARD0, "MMC");   
+    gpio_altfuncdisable(GPIO_ALT_SD_CARD0, "MMC");
     response2 = mmc_disable ();
 
-    return response;
-}
-
-t_mmc_error display_file_list (char *extension)
-{
-    u32                      i, j, k, goout;
-    u32                      FATStartSector;
-    u8                       SectorsPerCluster;
-    u32                      RDStartSector;
-    u32                      DataStartSector;
-    u16                      BytesPerSector;
-    u32                      BRStartSector;
-    u16                      SectorsPerFAT;
-    u16                      MaxRDEntries;
-    u16                      ReservedSectors;
-    u8                       sector[512];
-    t_mmc_error                   response;
-    t_mmc_error                   response2;
-    u32                      CSD[4];
-    char                          nomefile[12] = "           ";
-    char                          name[9] = "        ";
-    char                          extent[4] = "   ";
-    u32                      FileSize;
-
-    //printf("disp:: start\n");
-    gpio_altfuncenable(GPIO_ALT_SD_CARD0, "MMC");  
-
-    // Power-on the controller    
-    response = mmc_enable ();
-
-    if (response != MMC_OK)
-    {
-        response = mmc_enable (); // This actually IS necessary because it takes time for newly-inserted cards initialize.  ~Chris S.
-        if (response != MMC_OK)
-        {
-            printf ("Error in card power on, response is %d\n", response);
-            goto end;
-        }
-    }
-    // Initialise the cards on the bus, if any
-    
-    response = mmc_initCard ();
-
-    if (response != MMC_OK)
-    {
-        printf ("1. Error in card initialization\n");
-        goto end;
-    }
-    // Get card info: CID, CSD, RCA registers
-   
-    response = mmc_readcsd (CSD);
-
-    if (response != MMC_OK) {
-        printf ("Error while fetching card info\n");
-        goto end;
-    }
-    // Read the MBR
-    
-    response = mmc_readblock (1, 0, (u32 *) sector, 512, MMCPOLLING);
-
-    if (response != MMC_OK)
-    {
-        printf ("Error while reading boot record\n");
-        goto end;
-    }
-    if (sector[446] == 0x00 || sector[446] == 0x80)
-    {                           // found a MBR at the beginning of card
-
-        BRStartSector = sector[454];
-    }    
-    else
-    {                           // BR at the beginning of card
-
-        BRStartSector = 0x00;
-    }
-    // Read the BR
-    response = mmc_readblock (1, (u32) (512 * BRStartSector), (u32 *) & mmc_boot_record, 512, MMCPOLLING);
-
-    k = 0;
-    while (response == MMC_DATA_CRC_FAIL && (k < 2))
-    {
-        response = mmc_readblock (1, (u32) (512 * BRStartSector), (u32 *) & mmc_boot_record, 512, MMCPOLLING);
-        k++;
-    }
-    if (response != MMC_OK)
-    {
-        printf ("Error while reading boot record\n");
-        goto end;
-    }
-    mmc_copyByteH (mmc_boot_record.BytesPerSector, (u8 *) & BytesPerSector, 2);
-    mmc_copyByteH (mmc_boot_record.ReservedSectors, (u8 *) & ReservedSectors, 2);
-    FATStartSector = BRStartSector + ReservedSectors;   // the field at offset 15 contains the number of reserved sectors at
-    // the beginning of the media including the boot sector
-
-    mmc_copyByteH        (mmc_boot_record.SectorsPerFat, (u8 *) & SectorsPerFAT, 2);
-    SectorsPerCluster  = mmc_boot_record.SectorsPerCluster[0];
-    mmc_copyByteH        (mmc_boot_record.NumOfRootEntries, (u8 *) & MaxRDEntries, 2);
-
-    FATStartSector += SectorsPerFAT;
-    RDStartSector = FATStartSector + SectorsPerFAT;
-    DataStartSector = RDStartSector + (u32) ((MaxRDEntries * 32) / 512);
-    // search Root Directory for entry filename
-    goout = 0;
-    printf ("file  \t\t     size\n");    
-    
-    for (j = 0; j < (DataStartSector - RDStartSector); j++)
-    {
-    	printf(" disp:: data start \n");
-        if (goout == 1)
-        {
-            break;
-        }
-        response = mmc_readblock (1, (u32) ((RDStartSector + j) * 512), (u32 *) sector, 512, MMCPOLLING);
-        k = 0;
-        while (response == MMC_DATA_CRC_FAIL && (k < 2))
-        {
-            response = mmc_readblock (1, (u32) ((RDStartSector + j) * 512), (u32 *) sector, 512, MMCPOLLING);
-            k++;
-        }
-        if (response != MMC_OK)
-        {
-            printf ("Error while reading root directory\n");
-            goto end;
-        }
-        for (i = 0; i < 512; i += 32)
-        {
-            strncpy (nomefile, (char *) &sector[i], 11);
-            if (nomefile[0] == 0)   // end of Root Directory
-            {
-                goout = 1;
-                break;
-            }
-            if (nomefile[0] != 0xE5)    // not deleted file only
-            {
-                for (k = 0; k < 3; k++)
-                {
-                    extent[k] = (char) toupper (extension[k]);
-                }
-                if ((strncmp (&nomefile[8], extent, strlen (extension)) == 0) || (*extension == '*'))
-                {
-                    mmc_copyByteH (&sector[i + 28], (u8 *) & FileSize, 4);
-                    k = 0;
-                    while ((nomefile[k] != 0x20) && (k < 8))
-                    {
-                        name[k] = (char) tolower (nomefile[k]);
-                        k++;
-                    }
-                    name[k] = '\0';
-                    for (k = 0; k < 3; k++)
-                    {
-                        extent[k] = (char) tolower (nomefile[k + 8]);
-                    }
-                    printf ("%s.%s \t %10ld\n", name, extent, FileSize);
-                }
-            }
-        }
-    }
-end:
-    gpio_altfuncdisable(GPIO_ALT_SD_CARD0, "MMC");   
-    response2 = mmc_disable ();
-    //printf("disp:: done \n");
     return response;
 }
 
@@ -970,34 +810,34 @@ static char       mmc_cmdbuffer[1024] ;
 
 int copy_file_mmc (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	unsigned long       address;
-	unsigned long       filesize;
-	int                 load_result;
-	char                filename[30];
+	unsigned long	address;
+	u32		filesize;
+	int		load_result;
+	char		filename[30];
 
 	strcpy(filename , argv[1]);
         address  = simple_strtoul (argv[2], 0, 16);
-	
+
 	printf("copy_file_mmc : filename = %s\n", filename);
-	printf("copy_file_mmc : address = %x\n", address);
-    
+	printf("copy_file_mmc : address = %lx\n", address);
+
         load_result      = mmc_read_file(filename, address, &filesize);
         if (load_result != 0)
         {
-            printf("copy_file_mmc error : in loading file \n");         
+            printf("copy_file_mmc error : in loading file \n");
         }
         return(load_result);
 }
 
 int mmc_read_cmd_file (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	unsigned long       filesize;
-	int                 load_result;
-   	
+	u32	filesize;
+	int	load_result;
+
         load_result      = mmc_read_file("command.txt",
 			(unsigned long)&mmc_cmdbuffer, &filesize);
         if (load_result != 0) {
-            printf("mmc_read_cmd_file error : in loading file \n");         
+            printf("mmc_read_cmd_file error : in loading file \n");
         } else {
 	    setenv ("bootcmd", mmc_cmdbuffer);
 	}
