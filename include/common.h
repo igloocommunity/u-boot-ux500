@@ -569,6 +569,7 @@ void	irq_free_handler   (int);
 void	reset_timer	   (void);
 ulong	get_timer	   (ulong base);
 void	set_timer	   (ulong t);
+u64	get_timer_us	   (void);
 void	enable_interrupts  (void);
 int	disable_interrupts (void);
 

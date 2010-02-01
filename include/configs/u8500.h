@@ -31,8 +31,6 @@
 #define CONFIG_U8500_ED		1
 #define CONFIG_L2_OFF		1
 
-#undef CONFIG_BOOTTIME		/* enable boot time stamps */
-
 #define CONFIG_SYS_MEMTEST_START	0x00000000
 #define CONFIG_SYS_MEMTEST_END	0x1FFFFFFF
 #define CONFIG_SYS_HZ		1000		/* must be 1000 */

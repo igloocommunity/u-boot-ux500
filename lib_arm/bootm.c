@@ -24,9 +24,10 @@
 #include <common.h>
 #include <command.h>
 #include <image.h>
+#include <boottime.h>
 #include <u-boot/zlib.h>
 #include <asm/byteorder.h>
-#include <asm/boottime.h>
+
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -201,7 +202,7 @@ static void setup_boottime_tags(void)
 		if (b == NULL)
 			break;
 
-		params->u.boottime.entry[i].tick = b->tick;
+		params->u.boottime.entry[i].time = b->time;
 		strncpy((char *)params->u.boottime.entry[i].name,
 			(char *)b->name, BOOTTIME_MAX_NAME_LEN);
 		params->u.boottime.entry[i].name[BOOTTIME_MAX_NAME_LEN - 1] = '\0';

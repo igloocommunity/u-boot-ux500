@@ -21,6 +21,8 @@
 #ifndef __ASMARM_SETUP_H
 #define __ASMARM_SETUP_H
 
+#include <boottime.h>
+
 /*
  * Usage:
  *  - do not go blindly adding fields, add them at the end
@@ -206,20 +208,17 @@ struct tag_memclk {
 };
 
 /* for automatic boot timing testcases */
+
 #define ATAG_BOOTTIME  0x41000403
-#define BOOTTIME_MAX_NAME_LEN 64
 #define BOOTTIME_MAX 10
-struct boottime_entry {
-	u32 tick;
-	u8  name[BOOTTIME_MAX_NAME_LEN];
-};
 
 struct tag_boottime {
 	struct boottime_entry entry[BOOTTIME_MAX];
-	u32 idle;
-	u32 total;
+	u32 idle;  /* in us */
+	u32 total; /* in us */
 	u8 num;
 };
+
 
 
 struct tag {

@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2009 ST-Ericsson AB
+ * Copyright (C) 2009-2010 ST-Ericsson AB
  * Jonas Aaberg <jonas.aberg@stericsson.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,14 +20,14 @@
 
 
 #include <common.h>
+#include <boottime.h>
 #include <asm/byteorder.h>
-#include <asm/boottime.h>
 #include <asm/setup.h>
 
-#ifdef CONFIG_BOOTTIME
-ulong get_raw_timer(void);
-
-static struct tag_boottime boottime;
+static struct tag_boottime boottime = {
+	.idle = 0,
+	.total = 0,
+};
 
 int boottime_tag(char *name)
 {
@@ -40,7 +40,7 @@ int boottime_tag(char *name)
 		name,
 		BOOTTIME_MAX_NAME_LEN);
 	boottime.entry[boottime.num].name[BOOTTIME_MAX_NAME_LEN - 1] = '\0';
-	boottime.entry[boottime.num].tick = get_raw_timer();
+	boottime.entry[boottime.num].time = get_timer_us();
 
 	boottime.num++;
 	return 0;
@@ -56,17 +56,17 @@ struct boottime_entry *boottime_get_entry(unsigned int i)
 }
 
 
-void boottime_idle_add(ulong i)
+void boottime_idle_add(unsigned long time)
 {
-	boottime.idle += i;
+	boottime.idle += time;
 }
 
-ulong boottime_idle_done(void)
+unsigned long boottime_idle_done(void)
 {
-	return get_raw_timer();
+	return get_timer_us();
 }
 
-ulong boottime_idle_get(void)
+unsigned long boottime_idle_get(void)
 {
 	return boottime.idle;
 }
@@ -76,7 +76,7 @@ void boottime_remove_last(void)
 	if (boottime.num > 0)
 		boottime.num--;
 }
-#endif
+
 
 
 

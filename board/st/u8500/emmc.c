@@ -25,7 +25,7 @@
 #include "mmc.h"
 #include "emmc.h"
 #include "gpio.h"
-#include <asm/boottime.h>
+#include <boottime.h>
 
 #define PIB_EMMC_ADDR 0x00
 /* ========================================================================

@@ -38,6 +38,7 @@
 #include <hush.h>
 #endif
 
+#include <boottime.h>
 #include <post.h>
 
 #if defined(CONFIG_SILENT_CONSOLE) || defined(CONFIG_POST) || defined(CONFIG_CMDLINE_EDITING)
@@ -214,6 +215,10 @@ static int menukey = 0;
 static __inline__ int abortboot(int bootdelay)
 {
 	int abort = 0;
+
+#ifdef CONFIG_BOOTTIME
+	boottime_tag("autoboot_delay");
+#endif
 
 #ifdef CONFIG_MENUPROMPT
 	printf(CONFIG_MENUPROMPT);
