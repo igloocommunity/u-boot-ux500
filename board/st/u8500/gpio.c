@@ -29,6 +29,14 @@ static	struct gpio_register *addr_gpio_register[GPIO_BLOCKS_COUNT];
 int sz_altfun_tbl;
 
 struct gpio_altfun_data altfun_table[] = {
+    {.altfun = GPIO_ALT_I2C_0,.start = 147,.end = 148,.cont = 0,.type =
+        GPIO_ALTF_A,},
+    {.altfun = GPIO_ALT_I2C_1,.start = 16,.end = 17,.cont = 0,.type =
+        GPIO_ALTF_B,},
+    {.altfun = GPIO_ALT_I2C_2,.start = 10,.end = 11,.cont = 0,.type =
+        GPIO_ALTF_B,},
+    {.altfun = GPIO_ALT_I2C_3,.start = 229,.end = 230,.cont = 0,.type =
+        GPIO_ALTF_C,},
     {.altfun = GPIO_ALT_UART_0_MODEM,.start = 0,.end = 3,.cont = 1,.type =
         GPIO_ALTF_A,},
     {.altfun = GPIO_ALT_UART_0_MODEM,.start = 33,.end = 36,.cont = 0,.type =
@@ -181,7 +189,7 @@ gpio_error gpio_altfunction(gpio_alt_function alt_func,
             }
             if (!error)
                 continue;
-            nmdk_error
+            printf
                 ("GPIO %d configuration failure (nmdk_error:%d)",
                  j, error);
             error = GPIO_INVALID_PARAMETER;

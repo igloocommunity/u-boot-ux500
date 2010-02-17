@@ -22,6 +22,8 @@
 */
 
 #include <config.h>
+#include <common.h>
+#include <i2c.h>
 #include <asm/types.h>
 #include <asm/io.h>
 #include <asm/errno.h>
@@ -66,6 +68,8 @@
 #define PRCM_ARM_CHGCLKREQ_REG		(PRCMU_BASE + 0x114)
 
 #define PRCM_TCR			(PRCMU_BASE + 0x1C8)
+
+int board_id;	/* set in board_late_init() */
 
 /* PLLs for clock management registers */
 enum {
@@ -189,8 +193,6 @@ unsigned int addr_vall_arr[] = {
 0x8011F008, 0x00001CFF, // Clocks for HSI  TODO Enable reqd only
 0x8000F000, 0x00007FFF, // Clocks for I2C  TODO Enable reqd only
 0x8000F008, 0x00007FFF, // Clocks for I2C  TODO Enable reqd only
-0x8000E120, 0x003C0000, // GPIO for I2C/SD
-0x8000E124, 0x00000000, // GPIO for I2C/SD
 0x80157020, 0x00000150, // I2C 48MHz clock
 0x8012F000, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
 0x8012F008, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
@@ -214,11 +216,57 @@ unsigned int addr_vall_arr[] = {
 };
 
 #ifdef BOARD_LATE_INIT
+/*
+ * called after all initialisation were done, but before the generic
+ * mmc_initialize().
+ */
 int board_late_init(void)
 {
+	uchar byte;
+#ifdef CONFIG_MMC
+	uchar byte_array[] = {0x06, 0x06};
+#endif
+
+	/*
+	 * Determine and set board_id environment variable
+	 * 0: mop500, 1: href500
+	 * Above boards have different GPIO expander chips which we can
+	 * distinguish by the chip id.
+	 *
+	 * The board_id environment variable is needed for the Linux bootargs.
+	 */
+	(void) i2c_set_bus_num(0);
+	(void) i2c_read(CONFIG_SYS_I2C_GPIOE_ADDR, 0x80, 1, &byte, 1);
+	if (byte == 0x01) {
+		board_id = 0;
+		setenv("board_id", "0");
+	} else {
+		board_id = 1;
+		setenv("board_id", "1");
+	}
+#ifdef CONFIG_MMC
+	/*
+	 * config extended GPIO pins for level shifter and
+	 * SDMMC_ENABLE
+	 */
+	if (board_id == 0) {
+		/* MOP500 */
+		byte = 0x0c;
+		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0x89, 1, &byte, 1);
+		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0x83, 1, &byte, 1);
+	} else {
+		/* HREF */
+		/* set the direction of GPIO KPY9 and KPY10 */
+		byte = 0x06;
+		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0xC8, 1, &byte, 1);
+		/* must be a multibyte access */
+		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0xC4, 1,
+						&byte_array[0], 2);
+	}
+#endif /* CONFIG_MMC */
 	return (0);
 }
-#endif
+#endif /* BOARD_LATE_INIT */
 
 static void init_regs(void)
 {

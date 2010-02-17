@@ -105,31 +105,44 @@
 #define CONFIG_CMD_EXT2
 #define CONFIG_CMD_EMMC
 #define CONFIG_CMD_SOURCE
+#define CONFIG_CMD_I2C
 
 #ifdef CONFIG_USB_TTY
 #define CONFIG_BOOTDELAY	-1	/* disable autoboot */
 #endif /* CONFIG_USB_TTY */
 
 #ifndef CONFIG_BOOTDELAY
-#define CONFIG_BOOTDELAY	5
+#define CONFIG_BOOTDELAY	1
 #endif
+#define CONFIG_ZERO_BOOTDELAY_CHECK	/* check for keypress on bootdelay==0 */
 
-#define CONFIG_BOOTARGS	"cachepolicy=writealloc root=/dev/mmcblk0p2 noinitrd rootfstype=ext3 rootdelay=1 init=/linuxrc console=ttyAMA2,115200n8 board_id=1 mem=96M@0 mem=128M@128M"
-#define CONFIG_BOOTCOMMAND	"emmc_read 0x100000 0x14000000 0x200000; bootm 0x100000"
+#undef CONFIG_BOOTARGS
+#define CONFIG_BOOTCOMMAND	"run emmcboot"
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"loadaddr=0x00100000\0" \
-	"console=ttyAMA2,115200n8\0" \
-	"reflash=mmc init 1;fatload mmc 1 ${loadaddr} flash.scr; source ${loadaddr}\0" \
-	"loaduimage=mmc init 1;fatload mmc 1 ${loadaddr} uImage\0" \
-	"usbtty=cdc_acm\0"\
-	"stdout=serial,usbtty\0" \
-	"stdin=serial,usbtty\0" \
+	"loadaddr=0x00100000\0"						\
+	"console=ttyAMA2,115200n8\0"					\
+	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
+		"init=init mem=96M@0 mem=128M@128M "			\
+		"board_id=${board_id}\0"				\
+	"emmcargs=setenv bootargs ${bootargs} "				\
+		"root=/dev/mmcblk0p2 rootfstype=ext3 "			\
+		"rootdelay=1\0"						\
+	"addcons=setenv bootargs ${bootargs} "				\
+		"console=${console}\0"					\
+	"emmcboot=echo Booting from eMMC ...; "				\
+		"run commonargs emmcargs addcons;"			\
+		"emmc_read ${loadaddr} 0x14000000 0x200000; "		\
+		"bootm ${loadaddr}\0"					\
+	"cmdfile=mmc init 1;mmc_read_cmd_file;run bootcmd\0"		\
+	"flash=mmc init 1;fatload mmc 1 ${loadaddr} flash.scr;"		\
+		"source ${loadaddr}\0"					\
+	"loaduimage=mmc init 1;fatload mmc 1 ${loadaddr} uImage\0"	\
+	"usbtty=cdc_acm\0"						\
+	"stdout=serial,usbtty\0"					\
+	"stdin=serial,usbtty\0"						\
 	"stderr=serial,usbtty\0"
 
-#ifndef CONFIG_USB_TTY
-#define CONFIG_PREBOOT			"mmc init 1;mmc_read_cmd_file"
-#endif
 /*-----------------------------------------------------------------------
  * Miscellaneous configurable options
  */
@@ -156,6 +169,21 @@
 #define CONFIG_INITRD_TAG		1
 #define CONFIG_CMDLINE_TAG		1	/* enable passing of ATAGs  */
 
+/*
+ * I2C
+ */
+#define	CONFIG_HARD_I2C			/* I2C with hardware support */
+#undef	CONFIG_SOFT_I2C			/* I2C bit-banged */
+#define CONFIG_I2C_MULTI_BUS
+#define CONFIG_SYS_I2C_SPEED		100000
+#define CONFIG_SYS_I2C_SLAVE		0	/* slave addr of controller */
+#define CONFIG_SYS_I2C0_BASE		0x80004000
+#define CONFIG_SYS_I2C1_BASE		0x80122000
+#define CONFIG_SYS_I2C2_BASE		0x80128000
+#define CONFIG_SYS_I2C3_BASE		0x80110000
+#define CONFIG_SYS_I2C_BUS_MAX		4
+
+#define CONFIG_SYS_I2C_GPIOE_ADDR	0x42	/* GPIO expander chip addr */
 /*-----------------------------------------------------------------------
  * Stack sizes
  *
@@ -239,11 +267,6 @@
 #define CFG_GPIO_6_BASE			0x8011E000
 #define CFG_GPIO_7_BASE			0x8011E080
 #define CFG_GPIO_8_BASE			0xA03FE000
-
-/*
- * U8500 I2C0 register base for SD card
- */
-#define CFG_I2C0_BASE			0x80004000
 
 /*
  * U8500 RTC register base
