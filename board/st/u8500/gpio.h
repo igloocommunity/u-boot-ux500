@@ -424,9 +424,7 @@ typedef enum {
 	GPIO_ALT_CAM,
 	GPIO_ALT_CCP1,
 	GPIO_ALT_EMMC,
-#ifdef CONFIG_NOMADIK_8500_V1
 	GPIO_ALT_POP_EMMC,
-#endif
 	GPIO_ALT_FUNMAX		/* Add new alt func before this */
 } gpio_alt_function;
 

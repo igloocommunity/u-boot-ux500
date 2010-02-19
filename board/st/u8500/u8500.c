@@ -1,25 +1,9 @@
 /*
-* (C) Copyright 2009
-* ST-Ericsson, <www.stericsson.com>
-*
-* See file CREDITS for list of people who contributed to this
-* project.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; either version 2 of
-* the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston,
-* MA 02111-1307 USA
-*/
+ * (C) Copyright 2009
+ * ST-Ericsson, <www.stericsson.com>
+ *
+ * License terms: GNU General Public License (GPL), version 2.
+ */
 
 #include <config.h>
 #include <common.h>
@@ -27,9 +11,12 @@
 #include <asm/types.h>
 #include <asm/io.h>
 #include <asm/errno.h>
+#include <asm/arch/clock.h>
+#include <asm/arch/hardware.h>
+#include "gpio.h"
 
 #include "common.h"
-#define NOMADIK_PER4_BASE       (0x80150000)
+#define NOMADIK_PER4_BASE	(0x80150000)
 #define NOMADIK_BACKUPRAM0_BASE (NOMADIK_PER4_BASE + 0x00000)
 #define NOMADIK_BACKUPRAM1_BASE (NOMADIK_PER4_BASE + 0x01000)
 
@@ -151,6 +138,15 @@ void show_boot_progress(int progress)
 }
 #endif
 
+int u8500_is_earlydrop(void)
+{
+	unsigned int *address = (void *)U8500_BOOTROM_BASE
+				+ U8500_BOOTROM_ASIC_ID_OFFSET;
+
+	/* 0x01 for ED, 0xA0 for v1 */
+	return (readl(address) & 0xff) == 0x01;
+}
+
 /*
  * Miscellaneous platform dependent initialisations
  */
@@ -159,8 +155,11 @@ int board_init(void)
 {
     gd->bd->bi_arch_number = 0x1A4;
     gd->bd->bi_boot_params = 0x00000100;
-    /* MTU timer clock always enabled (not clocked) */
-    writel(0x20000, PRCM_TCR);
+
+    if (u8500_is_earlydrop()) {
+	/* MTU timer clock always enabled (not clocked) */
+	writel(0x20000, PRCM_TCR);
+    }
     icache_enable();
     gpio_init();
 
@@ -168,22 +167,10 @@ int board_init(void)
     return 0;
 }
 
-#ifdef CONFIG_MISC_INIT_R
-int misc_init_r(void)
-{
-    setenv("verify", "n");
-    return (0);
-}
-#endif
-
 int dram_init(void)
 {
     gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
     gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE_1;
-#ifdef CONFIG_U8500_V1
-    gd->bd->bi_dram[1].start = PHYS_SDRAM_2;
-    gd->bd->bi_dram[1].size = PHYS_SDRAM_SIZE_2;
-#endif
     wake_up_other_cores();
     return 0;
 }
@@ -212,7 +199,7 @@ unsigned int addr_vall_arr[] = {
 0xA03FF008, 0x00000001, // USB
 0xA03FE00C, 0x00000000, // USB
 0xA03FE020, 0x00000FFF, // USB
-0xA03FE024, 0x00000000  // USB
+0xA03FE024, 0x00000000	// USB
 };
 
 #ifdef BOARD_LATE_INIT
@@ -270,14 +257,119 @@ int board_late_init(void)
 
 static void init_regs(void)
 {
-    int i;
-    for(i = 0; i < ARRAY_SIZE(addr_vall_arr)/2; i++)
-    {
+	/* FIXME Remove magic register array settings for ED also */
+	if (u8500_is_earlydrop()) {
+		int i;
 
-        *((volatile unsigned int *)(addr_vall_arr[2 * i]))
-                                = addr_vall_arr[(2 * i) + 1];
-    }
+		for(i = 0; i < ARRAY_SIZE(addr_vall_arr)/2; i++)
+		{
+
+			*((volatile unsigned int *)(addr_vall_arr[2 * i]))
+				= addr_vall_arr[(2 * i) + 1];
+		}
+	} else {
+		struct prcmu *prcmu = (struct prcmu *) U8500_PRCMU_BASE;
+		u32 tmp;
+
+		/* Enable timers */
+		writel(1 << 17, &prcmu->tcr);
+
+		u8500_prcmu_enable(&prcmu->per1clk_mgt);
+		u8500_prcmu_enable(&prcmu->per2clk_mgt);
+		u8500_prcmu_enable(&prcmu->per3clk_mgt);
+		u8500_prcmu_enable(&prcmu->per5clk_mgt);
+		u8500_prcmu_enable(&prcmu->per6clk_mgt);
+		u8500_prcmu_enable(&prcmu->per7clk_mgt);
+
+		u8500_prcmu_enable(&prcmu->uartclk_mgt);
+		u8500_prcmu_enable(&prcmu->i2cclk_mgt);
+
+		if (!u8500_is_earlydrop()) {
+			/* Switch SDMMCCLK to 52Mhz instead of 104Mhz */
+			tmp = readl(&prcmu->sdmmcclk_mgt);
+			tmp = (tmp & ~0x1f) | 16;
+			writel(tmp, &prcmu->sdmmcclk_mgt);
+		}
+
+		u8500_prcmu_enable(&prcmu->sdmmcclk_mgt);
+
+		u8500_clock_enable(1, 9, -1);	/* GPIO0 */
+
+		if (u8500_is_earlydrop())
+			u8500_clock_enable(2, 12, -1);	/* GPIO1 */
+		else
+			u8500_clock_enable(2, 11, -1);	/* GPIO1 */
+
+		u8500_clock_enable(3, 8, -1);	/* GPIO2 */
+		u8500_clock_enable(5, 1, -1);	/* GPIO3 */
+
+		u8500_clock_enable(3, 6, 6);	/* UART2 */
+
+		gpio_altfuncenable(GPIO_ALT_I2C_0, "I2C0");
+		u8500_clock_enable(3, 3, 3);	/* I2C0 */
+
+		{
+			/* UART2: 29, 30 */
+			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
+			p_gpio_register -> gpio_dats |= 0x60000000;
+			p_gpio_register -> gpio_pdis &= ~0x60000000;
+		}
+		gpio_altfuncenable(GPIO_ALT_UART_2, "UART2");
+
+		{
+			/* 197 - 207 */
+			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_6_BASE);
+			p_gpio_register -> gpio_dats |= 0x0000ffe0;
+			p_gpio_register -> gpio_pdis &= ~0x0000ffe0;
+		}
+		gpio_altfuncenable(GPIO_ALT_EMMC, "EMMC");
+
+		{
+			/* 18 - 28 */
+			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
+			// p_gpio_register -> gpio_dats |= 0x0ffc0000;
+			p_gpio_register -> gpio_pdis &= ~0x0ffc0000;
+		}
+		gpio_altfuncenable(GPIO_ALT_SD_CARD0, "SDCARD");
+
+		u8500_clock_enable(1, 5, 5);	/* SDI0 */
+		u8500_clock_enable(2, 4, 2);	/* SDI4 */
+
+		if (u8500_is_earlydrop()) {
+			u8500_clock_enable(7, 2, -1);	/* MTU0 */
+		} else {
+			u8500_clock_enable(6, 7, -1);	/* MTU0 */
+			u8500_clock_enable(3, 4, 4);	/* SDI2 */
+
+			{
+				/* 128 - 138 */
+				struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_4_BASE);
+				p_gpio_register -> gpio_dats |= 0x000007ff;
+				p_gpio_register -> gpio_pdis &= ~0x000007ff;
+			}
+
+			gpio_altfuncenable(GPIO_ALT_POP_EMMC, "EMMC");
+		}
+
+		/*
+		 * Enabling clocks for all devices which are AMBA devices in the
+		 * kernel.  Otherwise they will not get probe()'d because the
+		 * peripheral ID register will not be powered.
+		 */
+
+		/* XXX: some of these differ between ED/V1 */
+
+		u8500_clock_enable(1, 1, 1);	/* UART1 */
+		u8500_clock_enable(1, 0, 0);	/* UART0 */
+
+		u8500_clock_enable(3, 2, 2);	/* SSP1 */
+		u8500_clock_enable(3, 1, 1);	/* SSP0 */
+
+		u8500_clock_enable(2, 8, -1);	/* SPI0 */
+		u8500_clock_enable(2, 5, 3);	/* MSP2 */
+	}
 }
+
 
 /*
  * get_pll_freq_khz - return PLL frequency in kHz

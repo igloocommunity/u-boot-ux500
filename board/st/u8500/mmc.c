@@ -603,7 +603,10 @@ t_mmc_error mmc_poweron(u8 card_num)
 	t_mmc[card_num]->mmc_Argument = 0;
 	t_mmc[card_num]->mmc_Command = APP_CMD | RespExpected | CmdPathEnable;
 
-	for (delay = 0; delay < (one_msec * 27); delay++) ;
+#define barrier() asm volatile("" ::: "memory")
+	for (delay = 0; delay < (one_msec * 27); delay++)
+		barrier();
+
 	error = mmc_cmdresp145error(APP_CMD, card_num);
 
 	/* IF ERROR IS COMMAND TIMEOUT IT IS MMC CARD */
@@ -843,6 +846,12 @@ t_mmc_error mmc_initializeCards(u8 card_num)
 	}
 	t_mmc[card_num]->mmc_Power = 0x3;
 	t_mmc[card_num]->mmc_Clock = 0x7500;
+
+	/* TODO remove this and use EXT_CSD to determine it */
+        if (mmc_card == 1 && t_mmc[card_num] == 0x80005000)
+		card_array[card_num].blockaddressed = 0;
+	else
+		card_array[card_num].blockaddressed = 1;
 
 	return error;
 }
@@ -1310,7 +1319,7 @@ t_mmc_error mmc_readblocks(u8 card_num, u32 addr, u32 * readbuff, u16 blocksize,
 
 		dest_buffer = readbuff;
 
-		t_mmc[card_num]->mmc_Argument = addr >> 9;
+		t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (addr >> 9) : addr;
 		t_mmc[card_num]->mmc_Command =	READ_MULT_BLOCK | RespExpected | CmdPathEnable;
 		error = mmc_cmdresp145error(READ_MULT_BLOCK, card_num);
 
@@ -1335,7 +1344,7 @@ t_mmc_error mmc_readblocks(u8 card_num, u32 addr, u32 * readbuff, u16 blocksize,
 
 		dest_buffer = readbuff;
 
-		t_mmc[card_num]->mmc_Argument = addr >> 9;
+		t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (addr >> 9) : addr;
 		t_mmc[card_num]->mmc_Command =	READ_SINGLE_BLOCK | RespExpected | CmdPathEnable;
 		error = mmc_cmdresp145error(READ_SINGLE_BLOCK, card_num);
 
@@ -1426,7 +1435,7 @@ t_mmc_error mmc_readblocks(u8 card_num, u32 addr, u32 * readbuff, u16 blocksize,
 
 		dest_buffer = readbuff;
 
-		t_mmc[card_num]->mmc_Argument = addr >> 9;
+		t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (addr >> 9) : addr;
 		t_mmc[card_num]->mmc_Command = READ_MULT_BLOCK | RespExpected | CmdPathEnable;
 		error = mmc_cmdresp145error(READ_MULT_BLOCK, card_num);
 		if (error != MMC_OK)
@@ -1593,7 +1602,7 @@ t_mmc_error mmc_writeblocks(u8 card_num, u32 addr, u32 * writebuff,
 
 		source_buffer = writebuff;
 
-		t_mmc[card_num]->mmc_Argument = addr >> 9;
+		t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (addr >> 9) : addr;
 		t_mmc[card_num]->mmc_Command = WRITE_MULT_BLOCK | RespExpected | CmdPathEnable;
 		error = mmc_cmdresp145error(WRITE_MULT_BLOCK, card_num);
 
@@ -1648,7 +1657,7 @@ t_mmc_error mmc_writeblocks(u8 card_num, u32 addr, u32 * writebuff,
 
 		/*Till here*/
 		/*SEND CMD24 WRITE_SINGLE_BLOCK */
-		t_mmc[card_num]->mmc_Argument = addr >> 9;
+		t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (addr >> 9) : addr;
 		t_mmc[card_num]->mmc_Command = WRITE_SINGLE_BLOCK | RespExpected | CmdPathEnable;
 		error = mmc_cmdresp145error(WRITE_SINGLE_BLOCK, card_num);
 		if (error != MMC_OK)
@@ -1758,7 +1767,7 @@ t_mmc_error mmc_writeblocks(u8 card_num, u32 addr, u32 * writebuff,
 		source_buffer = writebuff;
 
 		/*SEND CMD25 WRITE_MULT_BLOCK with argument data address*/
-		t_mmc[card_num]->mmc_Argument = addr >> 9;
+		t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (addr >> 9) : addr;
 		t_mmc[card_num]->mmc_Command = WRITE_MULT_BLOCK | RespExpected | CmdPathEnable;
 		error = mmc_cmdresp145error(WRITE_MULT_BLOCK, card_num);
 
@@ -1917,7 +1926,7 @@ t_mmc_error mmc_erase(u8 card_num, u32 StartAddr, u32 EndAddr)
 		return (error);
 	}
 
-	t_mmc[card_num]->mmc_Argument = StartAddr >> 9;
+	t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (StartAddr >> 9) : StartAddr;
 	t_mmc[card_num]->mmc_Command = ERASE_GRP_START | RespExpected | CmdPathEnable;
 	error = mmc_cmdresp145error(ERASE_GRP_START, card_num);
 	if (error != MMC_OK)
@@ -1948,7 +1957,7 @@ t_mmc_error mmc_erase(u8 card_num, u32 StartAddr, u32 EndAddr)
 		return error;
 	}
 
-	t_mmc[card_num]->mmc_Argument = EndAddr >> 9;
+	t_mmc[card_num]->mmc_Argument = card_array[card_num].blockaddressed ? (EndAddr >> 9) : EndAddr;
 	t_mmc[card_num]->mmc_Command = ERASE_GRP_END | RespExpected | CmdPathEnable;
 	error = mmc_cmdresp145error(ERASE_GRP_END, card_num);
 	if (error != MMC_OK)

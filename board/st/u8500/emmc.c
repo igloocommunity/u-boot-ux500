@@ -39,11 +39,13 @@ int emmc_init(u8 card_num)
     t_mmc_error mmc_error;
     t_mmc_error response;
     gpio_error gpioerror;
+    t_logical_address mmcbase;
     int error;
 
-#ifndef CONFIG_U8500_V1
+    mmcbase = u8500_is_earlydrop() ? CFG_EMMC_BASE_ED : CFG_EMMC_BASE_V1;
+
 /* Initialize the base address of eMMC */
-    mmc_error = mmc_init(card_num, CFG_EMMC_BASE);
+    mmc_error = mmc_init(card_num, mmcbase);
 
     if (MMC_OK != mmc_error)
     {
@@ -51,36 +53,37 @@ int emmc_init(u8 card_num)
         goto end;
     }
 
-    /* Initialize the gpio alternate function for eMMC */
-    struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_6_BASE);
-    p_gpio_register -> gpio_dats |= 0x0000FFE0;
-    p_gpio_register -> gpio_pdis &= ~0x0000FFE0;
+    /*
+     * FIXME The following code is not required on v1.  Check if it is really
+     * needed on ED or can be dropped.
+     */
+    if (u8500_is_earlydrop()) {
+#ifndef CONFIG_U8500_V1
+	/* Initialize the gpio alternate function for eMMC */
+	struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_6_BASE);
+	p_gpio_register -> gpio_dats |= 0x0000FFE0;
+	p_gpio_register -> gpio_pdis &= ~0x0000FFE0;
 
-    //enable the alternate function of EMMC
-    gpioerror = gpio_altfuncenable(GPIO_ALT_EMMC, "EMMC");
-    if(gpioerror != GPIO_OK)
-    {
-        printf("emmc_init() gpio_altfuncenable %d failed\n", gpioerror);
-        goto end;
-    }
+	//enable the alternate function of EMMC
+	gpioerror = gpio_altfuncenable(GPIO_ALT_EMMC, "EMMC");
+	if(gpioerror != GPIO_OK)
+	{
+	    printf("emmc_init() gpio_altfuncenable %d failed\n", gpioerror);
+	    goto end;
+	}
 
 #else
-/* Initialize the base address of PoP eMMC */
-    mmc_error = mmc_init(card_num, CFG_POP_EMMC_BASE);
-
-    if (MMC_OK != mmc_error)
-    {
-        printf("emmc_init() %d \n", mmc_error);
-        goto end;
-    }
-    //enable the alternate function of PoP EMMC
-    gpioerror = gpio_altfuncenable(GPIO_ALT_POP_EMMC, "EMMC");
-    if (gpioerror != GPIO_OK) {
-        printf("emmc_init() gpio_altfuncenable %d failed \n",
-               gpioerror);
-        goto end;
-    }
+	//enable the alternate function of PoP EMMC
+	// gpioerror = gpio_altfuncenable(GPIO_ALT_POP_EMMC, "EMMC");
+	gpioerror = gpio_altfuncenable(GPIO_ALT_EMMC, "EMMC");
+	if (gpioerror != GPIO_OK) {
+	    printf("emmc_init() gpio_altfuncenable %d failed \n",
+		   gpioerror);
+	    goto end;
+	}
 #endif
+    }
+
     //Power-on the controller
     response = mmc_poweron(card_num);
     if (response != MMC_OK)
@@ -105,91 +108,71 @@ int emmc_init(u8 card_num)
     return 0;
 
 end:
-#ifndef CONFIG_U8500_V1
-    gpio_altfuncdisable(GPIO_ALT_EMMC, "EMMC");
-#else
-    gpio_altfuncdisable(GPIO_ALT_POP_EMMC, "EMMC");
-#endif
     mmc_poweroff(card_num);
     return 1;
 }
+
+struct partition {
+	unsigned char boot_ind;		/* 0x80 - active */
+	unsigned char head;		/* starting head */
+	unsigned char sector;		/* starting sector */
+	unsigned char cyl;		/* starting cylinder */
+	unsigned char sys_ind;		/* What partition type */
+	unsigned char end_head;		/* end head */
+	unsigned char end_sector;	/* end sector */
+	unsigned char end_cyl;		/* end cylinder */
+	u32 start_sect;      /* starting sector counting from 0 */
+	u32 nr_sects;		     /* nr of sectors in partition */
+} __attribute__((packed));
+
+#define PART(type, start, num)			\
+	{					\
+		.boot_ind = 0x00,		\
+		.head = 0x03,			\
+		.sector = 0xD0,			\
+		.cyl = 0xff,			\
+		.sys_ind = type,		\
+		.end_head = 0x03,		\
+		.end_sector = 0xd0,		\
+		.end_cyl = 0xff,		\
+		.start_sect = start,		\
+		.nr_sects = num,		\
+	}
+
+static struct partition partitions_ed[] = {
+	[0] = PART(0x83, 0x000A0000,  0x00004000),	/* Kernel */
+	[1] = PART(0x83, 0x000A4000,  0x00080000),	/* Root file system */
+	[2] = PART(0x83, 0x00124000,  0x0022c000),
+	[3] = PART(0x0c, 0x00350000,  0x00b9a000),
+};
+
+static struct partition partitions_v1[] = {
+	[0] = PART(0x83, 0x000A0000,  0x00004000),	/* Kernel */
+	[1] = PART(0x83, 0x000A4000,  0x00080000),	/* Root file system */
+	[2] = PART(0x83, 0x00124000,  0x00000800),	/* Modem parameters */
+	[3] = {0},
+};
+
+#undef PART
 
 int emmc_write_pib(void)
 {
     int i;
     t_mmc_error mmc_error;
     u32 block_offset = PIB_EMMC_ADDR;
-    u8 emmc_last_sector[512];
     u8 card_num = 4;
+    u8 mbr[512];
 
-    for (i = 0; i < 0x1BF; i++) {
-        emmc_last_sector[i] = 0;
-    }
-    emmc_last_sector[0x1BF] = 0x03;
-    emmc_last_sector[0x1C0] = 0xD0;
-    emmc_last_sector[0x1C1] = 0xFF;
-    emmc_last_sector[0x1C2] = 0x83;
-    emmc_last_sector[0x1C3] = 0x03;
-    emmc_last_sector[0x1C4] = 0xD0;
-    emmc_last_sector[0x1C5] = 0xFF;
-    emmc_last_sector[0x1C6] = 0x00;
-    emmc_last_sector[0x1C7] = 0x00;
-    emmc_last_sector[0x1C8] = 0x0A;
-    emmc_last_sector[0x1C9] = 0x00;
-    emmc_last_sector[0x1CA] = 0x00;
-    emmc_last_sector[0x1CB] = 0x40;
-    emmc_last_sector[0x1CC] = 0x00;
-    emmc_last_sector[0x1CD] = 0x00;
-    emmc_last_sector[0x1CE] = 0x00;
-    emmc_last_sector[0x1CF] = 0x03;
-    emmc_last_sector[0x1D0] = 0xD0;
-    emmc_last_sector[0x1D1] = 0xFF;
-    emmc_last_sector[0x1D2] = 0x83;
-    emmc_last_sector[0x1D3] = 0x03;
-    emmc_last_sector[0x1D4] = 0xD0;
-    emmc_last_sector[0x1D5] = 0xFF;
-    emmc_last_sector[0x1D6] = 0x00;
-    emmc_last_sector[0x1D7] = 0x40;
-    emmc_last_sector[0x1D8] = 0x0A;
-    emmc_last_sector[0x1D9] = 0x00;
-    emmc_last_sector[0x1DA] = 0x00;
-    emmc_last_sector[0x1DB] = 0x00;
-    emmc_last_sector[0x1DC] = 0x08;
-    emmc_last_sector[0x1DD] = 0x00;
-    emmc_last_sector[0x1DE] = 0x00;
-    emmc_last_sector[0x1DF] = 0x03;
-    emmc_last_sector[0x1E0] = 0xD0;
-    emmc_last_sector[0x1E1] = 0xFF;
-    emmc_last_sector[0x1E2] = 0x83;
-    emmc_last_sector[0x1E3] = 0x03;
-    emmc_last_sector[0x1E4] = 0xD0;
-    emmc_last_sector[0x1E5] = 0xFF;
-    emmc_last_sector[0x1E6] = 0x00;
-    emmc_last_sector[0x1E7] = 0x40;
-    emmc_last_sector[0x1E8] = 0x12;
-    emmc_last_sector[0x1E9] = 0x00;
-    emmc_last_sector[0x1EA] = 0x00;
-    emmc_last_sector[0x1EB] = 0xC0;
-    emmc_last_sector[0x1EC] = 0x22;
-    emmc_last_sector[0x1ED] = 0x00;
-    emmc_last_sector[0x1EE] = 0x00;
-    emmc_last_sector[0x1EF] = 0x03;
-    emmc_last_sector[0x1F0] = 0xD0;
-    emmc_last_sector[0x1F1] = 0xFF;
-    emmc_last_sector[0x1F2] = 0x0C;
-    emmc_last_sector[0x1F3] = 0x03;
-    emmc_last_sector[0x1F4] = 0xD0;
-    emmc_last_sector[0x1F5] = 0xFF;
-    emmc_last_sector[0x1F6] = 0x00;
-    emmc_last_sector[0x1F7] = 0x00;
-    emmc_last_sector[0x1F8] = 0x35;
-    emmc_last_sector[0x1F9] = 0x00;
-    emmc_last_sector[0x1FA] = 0x00;
-    emmc_last_sector[0x1FB] = 0xA0;
-    emmc_last_sector[0x1FC] = 0xB9;
-    emmc_last_sector[0x1FD] = 0x00;
-    emmc_last_sector[0x1FE] = 0x55;
-    emmc_last_sector[0x1FF] = 0xAA;
+    memset(mbr, 0, 0x1be);
+
+    if (u8500_is_earlydrop())
+        memcpy(mbr + 0x1be, partitions_ed, sizeof(partitions_ed));
+    else
+        memcpy(mbr + 0x1be, partitions_v1, sizeof(partitions_v1));
+
+    /* magic */
+    mbr[0x1fe] = 0x55;
+    mbr[0x1ff] = 0xAA;
 
 /*  HACK required for HREF board as erase block size = 512KB */
 /*
@@ -199,8 +182,9 @@ int emmc_write_pib(void)
         return 1;
     }
 */
+
     mmc_error =
-        mmc_writeblocks(card_num, block_offset, (u32 *) emmc_last_sector,
+        mmc_writeblocks(card_num, block_offset, (u32 *) mbr,
                 512, 1);
     if (mmc_error != MMC_OK) {
         printf(" eMMC PIB write failed \n");

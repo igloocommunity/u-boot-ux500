@@ -1,5 +1,5 @@
 /*
- * Copyright (C) ST-Ericsson AB 2009
+ * Copyright (C) ST-Ericsson AB 2010
  *
  * Basic U-Boot I2C interface for STn8500/DB8500
  * Author: Michael Brandt <Michael.Brandt@stericsson.com>
@@ -8,11 +8,7 @@
  */
 
 /*
- * Only 7-bit I2C device address are supported.
- *
- * TODO:
- *	- eliminate "timeout" loop counters and replace with real
- *        timeouts based on timer ticks.
+ * Only 7-bit I2C device addresses are supported.
  */
 
 #include <common.h>
@@ -33,8 +29,8 @@ typedef enum {
 	I2C_OVFL
 } i2c_error_t;
 
-#define I2C_ENDAD_COUNTER       500000		/* I2C bus "timeout" */
-#define I2C_FIFO_FLUSH_COUNTER	50000		/* flush "timeout" */
+#define I2C_ENDAD_COUNTER       (CONFIG_SYS_HZ/100) /* I2C bus timeout */
+#define I2C_FIFO_FLUSH_COUNTER	500000		/* flush "timeout" */
 #define I2C_SCL_FREQ            100000          /* I2C bus clock frequency.*/
 #define I2C_INPUT_FREQ          48000000        /* Input clock frequency.*/
 #define TX_FIFO_THRESHOLD	0x4
@@ -162,37 +158,38 @@ void i2c_init(int speed, int slaveaddr)
  * loop_till_bit_clear - polls on a bit till it clears
  * ioreg: register where you want to check status
  * mask: bit mask for the bit you wish to check
- * end_counter: upper limit to the counter when you stop checking
+ * timeout: timeout in ticks/s
  */
-static int loop_till_bit_clear(void *io_reg, u32 mask, int end_counter)
+static int loop_till_bit_clear(void *io_reg, u32 mask, unsigned long timeout)
 {
-	int loop = 0;
-	while (1) {
+	unsigned long timebase = get_timer(0);
+
+	do {
 		if ((readl(io_reg) & mask) == 0x0UL)
 			return 0;
-		loop++;
-		if (loop == end_counter)
-			return 1;
-	}
+	} while (get_timer(timebase) < timeout);
+
+	debug("loop_till_bit_clear timed out\n");
+	return -1;
 }
 
 /*
  * loop_till_bit_set - polls on a bit till it is set.
  * ioreg: register where you want to check status
  * mask: bit mask for the bit you wish to check
- * end_counter: upper limit to the counter when you stop checking
- *
+ * timeout: timeout in ticks/s
  */
-static int loop_till_bit_set(void * io_reg, u32 mask, int end_counter)
+static int loop_till_bit_set(void * io_reg, u32 mask, unsigned long timeout)
 {
-	int loop = 0;
-	while (1) {
+	unsigned long timebase = get_timer(0);
+
+	do {
 		if ((readl(io_reg) & mask) != 0x0UL)
 			return 0;
-		loop++;
-		if (loop == end_counter)
-			return 1;
-	}
+	} while (get_timer(timebase) < timeout);
+
+	debug("loop_till_bit_set timed out\n");
+	return -1;
 }
 
 /*
@@ -260,7 +257,7 @@ static void i2c_abort(t_i2c_registers *p_i2c_registers)
 #ifdef DEBUG
 	print_abort_reason(p_i2c_registers);
 #endif
-	/* flush fifo */
+	/* flush RX and TX fifos */
 	flush_fifo(p_i2c_registers);
 
         /* Acknowledge the Master Transaction Done */
@@ -269,14 +266,7 @@ static void i2c_abort(t_i2c_registers *p_i2c_registers)
         /* Acknowledge the Master Transaction Done Without Stop */
         I2C_SET_BIT(p_i2c_registers->icr, I2C_INT_MTDWS);
 
-	/* disable controller */
-	I2C_CLR_BIT(p_i2c_registers->cr, I2C_CR_PE);
-
-	/* delay 10 milliseconds */
-	udelay(10*1000);
-
-	/* enable controller */
-	I2C_SET_BIT(p_i2c_registers->cr, I2C_CR_PE);
+	i2c_init(i2c_bus_speed[i2c_bus_num], CONFIG_SYS_I2C_SLAVE);
 }
 
 /*
@@ -587,7 +577,6 @@ int i2c_set_bus_num(unsigned int bus)
 
 int i2c_set_bus_speed(unsigned int speed)
 {
-	t_i2c_registers *p_i2c_registers;
 
 	if (speed > I2C_MAX_STANDARD_SCL) {
 		debug("i2c_set_bus_speed: only up to %d supported\n",
@@ -595,15 +584,8 @@ int i2c_set_bus_speed(unsigned int speed)
 		return -1;
 	}
 
-	p_i2c_registers = i2c_dev[i2c_bus_num];
-
-	/* Disable the controller */
-	I2C_CLR_BIT(p_i2c_registers->cr, I2C_CR_PE);
-
-	i2c_bus_speed[i2c_bus_num] = __i2c_set_bus_speed(speed);
-
-	/* Enable the controller */
-	I2C_SET_BIT(p_i2c_registers->cr, I2C_CR_PE);
+	/* sets as side effect i2c_bus_speed[i2c_bus_num] */
+	i2c_init(speed, CONFIG_SYS_I2C_SLAVE);
 
 	return 0;
 }

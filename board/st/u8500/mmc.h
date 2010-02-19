@@ -196,6 +196,7 @@ typedef struct {
     t_mmc_card_type card_type;
     u8 padding;
     u8 sdio_cccr[4]; /* I/O ready, CCCR/SDIO revision, SD Specification revision, and Card Capability registers */
+    int	blockaddressed;
 } t_mmc_card_info;
 
 typedef struct {

@@ -796,8 +796,6 @@ t_mmc_error mmc_read_file (char *filename, u32 address, u32 * FileSize)
     }
 
 end:
-    gpio_altfuncdisable(GPIO_ALT_SD_CARD0, "MMC");
-    response2 = mmc_disable ();
 
     return response;
 }

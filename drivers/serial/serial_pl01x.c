@@ -118,6 +118,14 @@ int serial_init (void)
 	unsigned int remainder;
 	unsigned int fraction;
 
+	/* Empty RX fifo if necessary */
+	if (IO_READ(port[CONSOLE_PORT] + UART_PL011_CR) & UART_PL011_CR_UARTEN) {
+		while (!(IO_READ(port[CONSOLE_PORT] + UART_PL01x_FR)
+			    & UART_PL01x_FR_RXFE)) {
+			IO_READ(port[CONSOLE_PORT] + UART_PL01x_DR);
+		}
+	}
+
 	/*
 	 ** First, disable everything.
 	 */
@@ -148,7 +156,7 @@ int serial_init (void)
 	/* program receive line control register */
 	IO_WRITE(port[CONSOLE_PORT] + 0x1C, 0x70);
 #endif
-	
+
 	/*
 	 ** Finally, enable the UART
 	 */

@@ -32,7 +32,7 @@
 #define CONFIG_U8500_ED		1
 #define CONFIG_L2_OFF		1
 
-#define CONFIG_BOOTTIME		/* enable boot time stamps */
+#undef CONFIG_BOOTTIME		/* enable boot time stamps */
 
 #define CONFIG_SYS_MEMTEST_START	0x00000000
 #define CONFIG_SYS_MEMTEST_END	0x1FFFFFFF
@@ -43,8 +43,6 @@
 #else
 #define CONFIG_SYS_TIMERBASE	0xA03C6000      /* MTU0 timer */
 #endif
-
-#define CONFIG_MISC_INIT_R	1	/* call misc_init_r during start up */
 
 #define BOARD_LATE_INIT		1
 
@@ -120,6 +118,7 @@
 #define CONFIG_BOOTCOMMAND	"run emmcboot"
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
+	"verify=n\0"							\
 	"loadaddr=0x00100000\0"						\
 	"console=ttyAMA2,115200n8\0"					\
 	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
@@ -198,11 +197,9 @@
 /*-----------------------------------------------------------------------
  * Physical Memory Map
  */
-#define CONFIG_NR_DRAM_BANKS		2	/* we have dual bank of DRAM */
+#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM_1			0x00000000	/* DDR-SDRAM Bank #1 */
 #define PHYS_SDRAM_SIZE_1		0x10000000	/* 256 MB */
-#define PHYS_SDRAM_2			0x20000000	/* DDR-SDRAM Bank #2 */
-#define PHYS_SDRAM_SIZE_2		0x10000000	/* 256 MB */
 
 /*-----------------------------------------------------------------------
  * MMC related configs
@@ -213,7 +210,9 @@
 /*-----------------------------------------------------------------------
  * EMMC related configs
  */
-#define CFG_EMMC_BASE		0x80114000	/* EMMC base of size 2GB for 8500  */
+#define CFG_EMMC_BASE_V1		0x80005000	/*POP EMMC base of size 256MB for 8500 cut1.0 */
+#define CFG_EMMC_BASE_ED		0x80114000	/* EMMC base of size 2GB for 8500  */
+
 #define CONFIG_CMD_ENV
 #define CONFIG_CMD_SAVEENV	/* CMD_ENV is obsolete but used in env_emmc.c */
 #define CONFIG_ENV_IS_IN_EMMC		1
@@ -237,16 +236,9 @@
 /*-----------------------------------------------------------------------
  * FLASH and environment organization
  */
-#ifndef CONFIG_U8500_V1
 
 #define CONFIG_SYS_MAX_FLASH_SECT 	512	
 #define CONFIG_SYS_MAX_FLASH_BANKS	1	/* max number of memory banks */
-
-#else
-
-#define CFG_POP_EMMC_BASE	0x80005000  	/*POP EMMC base of size 256MB for 8500 cut1.0 */
-
-#endif
 
 /*------------------------------------------------------------------------------
  * base register values for U8500

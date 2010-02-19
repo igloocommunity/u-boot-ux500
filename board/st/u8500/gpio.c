@@ -67,10 +67,8 @@ struct gpio_altfun_data altfun_table[] = {
         GPIO_ALTF_A,},
     {.altfun = GPIO_ALT_EMMC,.start = 197,.end = 207,.cont = 0,.type =
         GPIO_ALTF_A,},
-#ifdef CONFIG_STM_8500_V1
     {.altfun = GPIO_ALT_POP_EMMC,.start = 128,.end = 138,.cont = 0,.type =
         GPIO_ALTF_A,},
-#endif
 };
 
 /*
@@ -164,13 +162,12 @@ gpio_error gpio_altfunction(gpio_alt_function alt_func,
     gpio_error error = -1;
 
     for (i = 0; i < sz_altfun_tbl; i++) {
-        if (altfun_table[i].altfun == alt_func)
-            break;
-    }
-    start = altfun_table[i].start;
-    end = altfun_table[i].end;
-    for (j = start; j <= end; j++) {
-        {
+        if (altfun_table[i].altfun != alt_func)
+            continue;
+
+	start = altfun_table[i].start;
+	end = altfun_table[i].end;
+	for (j = start; j <= end; j++) {
             if (which_altfunc == GPIO_ALTF_FIND) {
                 altfun_pinconfig.mode =
                     altfun_table[i].type;
@@ -195,6 +192,9 @@ gpio_error gpio_altfunction(gpio_alt_function alt_func,
             error = GPIO_INVALID_PARAMETER;
             return (error);
         }
+
+        if (!altfun_table[i].cont)
+            break;
     }
     return (error);
 }

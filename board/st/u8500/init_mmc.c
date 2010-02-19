@@ -180,9 +180,11 @@ static int init_mmc(void)
         return 1 ;
     }    
 
-    gpio_base_address = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
-    gpio_base_address -> gpio_dats |= 0xFFC0000;
-    gpio_base_address -> gpio_pdis &= ~0xFFC0000;
+	if (u8500_is_earlydrop()) {
+		gpio_base_address = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
+		gpio_base_address -> gpio_dats |= 0xFFC0000;
+		gpio_base_address -> gpio_pdis &= ~0xFFC0000;
+	}
 
 	if (mmc_hw_init() != 0) {
 		printf("mmc_init: hw init failed\n");
