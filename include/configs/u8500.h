@@ -125,7 +125,7 @@
 		"init=init mem=96M@0 mem=128M@128M "			\
 		"board_id=${board_id}\0"				\
 	"emmcargs=setenv bootargs ${bootargs} "				\
-		"root=/dev/mmcblk0p2 rootfstype=ext3 "			\
+		"root=/dev/mmcblk0p2 "					\
 		"rootdelay=1\0"						\
 	"addcons=setenv bootargs ${bootargs} "				\
 		"console=${console}\0"					\
