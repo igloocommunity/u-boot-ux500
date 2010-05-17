@@ -116,18 +116,6 @@ static struct clk_mgt_regs maja_clk_regs[] = {
 	{0, 0, NULL},
 };
 
-extern void (*handler)(void);
-extern void secondary_wfe(void);
-
-void wake_up_other_cores(void)
-{
-	handler = secondary_wfe;
-	*((volatile unsigned int *)(NOMADIK_BACKUPRAM0_BASE+0x1FF4))= handler;
-	*((volatile unsigned int *)(NOMADIK_BACKUPRAM0_BASE+0x1FF0))= 0xA1FEED01;
-	asm("SEV");
-	return;
-}
-
 static void init_regs(void);
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -171,7 +159,6 @@ int dram_init(void)
 {
     gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
     gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE_1;
-    wake_up_other_cores();
     return 0;
 }
 
