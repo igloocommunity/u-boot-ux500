@@ -1,6 +1,5 @@
 /*
- * (C) Copyright 2009
- * ST-Ericsson, <www.stericsson.com>
+ * Copyright (C) ST-Ericsson SA 2009
  *
  * License terms: GNU General Public License (GPL), version 2.
  */

@@ -1,6 +1,5 @@
 /*
- * (C) Copyright 2009
- * ST-Ericsson <www.stericsson.com>
+ * Copyright (C) ST-Ericsson SA 2009
  *
  * See file CREDITS for list of people who contributed to this
  * project.
