@@ -24,6 +24,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <fat.h>
 #include "gpio.h"
 #include "mmc.h"                // MMC api
 #include "mmc_utils.h"          // to access MMC
@@ -806,42 +807,82 @@ end:
 
 static char       mmc_cmdbuffer[1024] ;
 
-int copy_file_mmc (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int copy_file_mmc (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	unsigned long	address;
-	u32		filesize;
-	int		load_result;
-	char		filename[30];
+#ifdef CONFIG_CMD_FAT
+    unsigned long       address;
+    long sz;
 
-	strcpy(filename , argv[1]);
-        address  = simple_strtoul (argv[2], 0, 16);
+    address  = simple_strtoul (argv[2], 0, 16);
 
-	printf("copy_file_mmc : filename = %s\n", filename);
-	printf("copy_file_mmc : address = %lx\n", address);
+    printf("copy_file_mmc : filename = %s\n", argv[1]);
+    printf("copy_file_mmc : address = %lx\n", address);
 
-        load_result      = mmc_read_file(filename, address, &filesize);
+    sz = file_fat_read(argv[1], (void *)address, 0);
+    if (sz == -1)
+    {
+        printf("copy_file_mmc error : in loading file \n");
+        return 1;
+    }
+
+    return 0;
+#else
+    unsigned long       address;
+    unsigned long       filesize;
+    int                 load_result = 1;
+    unsigned long       error_name  = 0;
+    char                filename[30]        ;
+    {
+        strcpy(filename , argv[1]);
+        address  = simple_strtoul (argv[2],0,16);//argv[2];
+
+        printf("copy_file_mmc : filename = %s\n",filename);
+        printf("copy_file_mmc : address = %lx\n",address);
+
+        load_result      = mmc_read_file(filename,address,&filesize);
         if (load_result != 0)
         {
+            error_name   = (unsigned long) (-load_result);
             printf("copy_file_mmc error : in loading file \n");
         }
-        return(load_result);
+        return(0);
+    }
+#endif
 }
 
-int mmc_read_cmd_file (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int mmc_read_cmd_file (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	u32	filesize;
-	int	load_result;
+#ifdef CONFIG_CMD_FAT
+    long sz;
 
-        load_result      = mmc_read_file("command.txt",
-			(unsigned long)&mmc_cmdbuffer, &filesize);
-        if (load_result != 0) {
+    sz = file_fat_read("command.txt", &mmc_cmdbuffer, sizeof(mmc_cmdbuffer) - 1);
+    if (sz == -1)
+    {
+        printf("No command.txt found in the Card\n");
+        return 1;
+    }
+
+    mmc_cmdbuffer[sz] = '\0';
+    setenv ("bootcmd", mmc_cmdbuffer);
+    return 0;
+#else
+    unsigned long       filesize;
+    int                 load_result = 1;
+    unsigned long       error_name  = 0;
+
+        load_result      = mmc_read_file("command.txt",(unsigned long)&mmc_cmdbuffer,&filesize);
+        if (load_result != 0)
+        {
+            error_name   = (unsigned long) (-load_result);
             printf("mmc_read_cmd_file error : in loading file \n");
-        } else {
-	    setenv ("bootcmd", mmc_cmdbuffer);
-	}
-        return(load_result);
+        }
+        else
+        {
+            setenv ("bootcmd", mmc_cmdbuffer);
+        }
+        return(0);
+#endif
 }
-
 
 U_BOOT_CMD(
 	copy_file_mmc,	3,	0,	copy_file_mmc,
