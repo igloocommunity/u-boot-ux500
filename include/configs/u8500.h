@@ -121,8 +121,11 @@
 	"loadaddr=0x00100000\0"						\
 	"console=ttyAMA2,115200n8\0"					\
 	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
-		"init=init mem=96M@0 mem=128M@128M "			\
-		"board_id=${board_id}\0"				\
+		"init=init mem=96M@0 mem=34M@128M "			\
+		"pmem=22M@162M pmem_mio=8M@184M pmem_hwb=32M@192M "	\
+		"board_id=${board_id} "					\
+		"logo.${logo} "					\
+		"startup_graphics=${startup_graphics}\0"		\
 	"emmcargs=setenv bootargs ${bootargs} "				\
 		"root=/dev/mmcblk0p2 "					\
 		"rootdelay=1\0"						\
@@ -182,6 +185,7 @@
 #define CONFIG_SYS_I2C_BUS_MAX		4
 
 #define CONFIG_SYS_I2C_GPIOE_ADDR	0x42	/* GPIO expander chip addr */
+#define CONFIG_TC35892_GPIO
 /*-----------------------------------------------------------------------
  * Stack sizes
  *
@@ -239,6 +243,16 @@
 #define CONFIG_SYS_MAX_FLASH_SECT 	512	
 #define CONFIG_SYS_MAX_FLASH_BANKS	1	/* max number of memory banks */
 
+/*-----------------------------------------------------------------------
+ * Video Logo Related configs
+ */
+#define CONFIG_VIDEO_LOGO	/* Enable startup logo */
+/*
+#define CONFIG_SYS_VIDEO_USE_GIMP_HEADER
+#define CONFIG_SYS_VIDEO_FB_ADRS 	0x14000000
+*/
+#define CONFIG_SYS_MCDE_REFRESH_TIME	50
+
 /*------------------------------------------------------------------------------
  * base register values for U8500
  */
@@ -263,5 +277,11 @@
  * U8500 RTC register base
  */
 #define CFG_RTC_BASE			0x80154000	/* Real time clock */
+
+/*
+ * U8500 Display register base
+ */
+#define CFG_MCDE_BASE 			0xA0350000
+#define CFG_DSI_BASE  			0xA0351000
 
 #endif	/* __CONFIG_H */

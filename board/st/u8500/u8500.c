@@ -13,9 +13,13 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/ab8500.h>
+#include <tc35892.h>
 #include "gpio.h"
 
 #include "common.h"
+#ifdef CONFIG_VIDEO_LOGO
+#include "mcde_display.h"
+#endif
 #define NOMADIK_PER4_BASE	(0x80150000)
 #define NOMADIK_BACKUPRAM0_BASE (NOMADIK_PER4_BASE + 0x00000)
 #define NOMADIK_BACKUPRAM1_BASE (NOMADIK_PER4_BASE + 0x01000)
@@ -171,6 +175,52 @@ int dram_init(void)
     return 0;
 }
 
+#ifdef CONFIG_VIDEO_LOGO
+int dss_init(void)
+{
+	int ret = 0;
+	uchar byte;
+	puts("MCDE:  ");
+	if (!cpu_is_u8500v11()) {
+		printf("Only HREF+ is supported \n");
+		goto mcde_error;
+	}
+	(void) i2c_set_bus_num(0);
+	(void) i2c_read(CONFIG_SYS_I2C_GPIOE_ADDR, 0x80, 1, &byte, 1);
+	if (byte == 0x01)
+		board_id = 0;
+	else
+		board_id = 1;
+
+	if (board_id != 0) {
+		ret = mcde_startup();
+		if (ret) {
+			printf("startup failed\n");
+			goto mcde_error;
+		}
+		ret = mcde_display_image();
+		if (ret) {
+			printf("display_image failed\n");
+			goto mcde_error;
+		}
+
+		printf("ready \n");
+		setenv("startup_graphics", "1");
+		setenv("logo", "nologo");
+		goto mcde_ok;
+	} else {
+		ret = 1;
+		printf("MOP500 is not supported \n");
+	}
+mcde_error:
+	setenv("startup_graphics", "0");
+	setenv("logo", "0");
+mcde_ok:
+	return ret;
+
+}
+#endif
+
 unsigned int addr_vall_arr[] = {
 0x8011F000, 0x0000FFFF, // Clocks for HSI  TODO Enable reqd only
 0x8011F008, 0x00001CFF, // Clocks for HSI  TODO Enable reqd only
@@ -305,6 +355,9 @@ int board_late_init(void)
 						&byte_array[0], 2);
 	}
 #endif /* CONFIG_MMC */
+#ifdef CONFIG_VIDEO_LOGO
+	dss_init();
+#endif
 	return (0);
 }
 #endif /* BOARD_LATE_INIT */
