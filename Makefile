@@ -3152,6 +3152,7 @@ omap3_zoom2_config :	unconfig
 smdkc100_config:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm_cortexa8 smdkc100 samsung s5pc1xx
 
+u5500_def_config \
 u8500_def_config \
 u8500_SRAM_config \
 u8500_noconsole_config \
