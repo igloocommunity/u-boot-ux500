@@ -47,13 +47,6 @@ struct mcde_port {
 			u8 virt_id;
 			u8 num_data_lanes;
 		} dsi;
-		struct {
-			u8 num_data_lanes;
-		} dbi;
-		struct {
-			t_bool chip_select;
-			u8 num_data_lanes;
-		} dpi;
 	} phy;
 };
 

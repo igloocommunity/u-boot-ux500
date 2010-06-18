@@ -17,6 +17,7 @@
 #include "dsilink_regs.h"
 #include "mcde_regs.h"
 #include "mcde.h"
+#include <asm/arch/hardware.h>
 
 #define DEBUG 0
 #define dbg_printk(format, arg...)			\
@@ -174,6 +175,8 @@ static u8 portfmt2bpp(enum mcde_port_pix_fmt pix_fmt)
 	}
 }
 
+#define DSI_UNIT_INTERVAL_0	0x9
+
 void update_channel_static_registers(struct mcde_chnl_state *chnl)
 {
 	const struct mcde_port *port = &chnl->port;
@@ -191,7 +194,7 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 	dsi_wfld(lnk, DSI_MCTL_MAIN_DATA_CTL, READ_EN, TRUE);
 	dsi_wfld(lnk, DSI_MCTL_MAIN_DATA_CTL, REG_TE_EN, TRUE);
 	dsi_wreg(lnk, DSI_MCTL_DPHY_STATIC,
-		DSI_MCTL_DPHY_STATIC_UI_X4(0xf));
+		DSI_MCTL_DPHY_STATIC_UI_X4(DSI_UNIT_INTERVAL_0));
 	dsi_wreg(lnk, DSI_DPHY_LANES_TRIM,
 		DSI_DPHY_LANES_TRIM_DPHY_SPECS_90_81B_ENUM(0_90));
 	dsi_wreg(lnk, DSI_MCTL_DPHY_TIMEOUT,
@@ -205,7 +208,8 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 	dsi_wreg(lnk, DSI_MCTL_ULPOUT_TIME,
 		DSI_MCTL_ULPOUT_TIME_CKLANE_ULPOUT_TIME(1) |
 		DSI_MCTL_ULPOUT_TIME_DATA_ULPOUT_TIME(1));
-	dsi_wfld(lnk, DSI_CMD_MODE_CTL, ARB_MODE, TRUE);
+	dsi_wfld(lnk, DSI_CMD_MODE_CTL, ARB_MODE, FALSE);
+	dsi_wfld(lnk, DSI_CMD_MODE_CTL, ARB_PRI, port->ifc == 1);
 	dsi_wfld(lnk, DSI_CMD_MODE_CTL, TE_TIMEOUT, 0x3ff);
 	dsi_wreg(lnk, DSI_MCTL_MAIN_EN,
 		DSI_MCTL_MAIN_EN_PLL_START(TRUE) |
@@ -213,8 +217,8 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 		DSI_MCTL_MAIN_EN_DAT1_EN(TRUE) |
 		DSI_MCTL_MAIN_EN_DAT2_EN(port->phy.dsi.num_data_lanes
 			== 2) |
-		DSI_MCTL_MAIN_EN_IF1_EN(TRUE));
-
+		DSI_MCTL_MAIN_EN_IF1_EN(port->ifc == 0) |
+		DSI_MCTL_MAIN_EN_IF2_EN(port->ifc == 1));
 	while (dsi_rfld(lnk, DSI_MCTL_MAIN_STS, CLKLANE_READY) == 0 ||
 	       dsi_rfld(lnk, DSI_MCTL_MAIN_STS, DAT1_READY) == 0 ||
 	       dsi_rfld(lnk, DSI_MCTL_MAIN_STS, DAT2_READY) == 0) {
@@ -222,6 +226,7 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 		if (i++ == 10)
 			printf("DSI lane not ready (link=%d)!\n", lnk);
 	}
+
 
 	if (port->ifc == 0 && port->link == 0)
 		mcde_wfld(MCDE_CR, DSIVID0_EN, TRUE);
@@ -663,89 +668,117 @@ int mcde_dsi_dcs_write(struct mcde_port *port, u8 cmd, u8* data, int len)
 		dsi_wreg(link, DSI_DIRECT_CMD_WRDAT3, wrdat[3]);
 	dsi_wreg(link, DSI_DIRECT_CMD_STS_CLR, ~0);
 	dsi_wreg(link, DSI_DIRECT_CMD_SEND, TRUE);
-
 	mdelay(10);
+
+	dsi_wreg(link, DSI_CMD_MODE_STS_CLR, ~0);
+	dsi_wreg(link, DSI_DIRECT_CMD_STS_CLR, ~0);
 	return 0;
 }
 
+/*
+* Used by MCDE to setup all necessary PRCMU registers
+*/
+
+/* Level shifter and clamp control registers */
+#define PRCM_MMIP_LS_CLAMP_SET     (U8500_PRCMU_BASE + 0x420)
+#define PRCM_MMIP_LS_CLAMP_CLR     (U8500_PRCMU_BASE + 0x424)
+
+/* PRCMU clock/PLL/reset registers */
+#define PRCM_PLLDSI_FREQ           (U8500_PRCMU_BASE + 0x500)
+#define PRCM_PLLDSI_ENABLE         (U8500_PRCMU_BASE + 0x504)
+#define PRCM_LCDCLK_MGT            (U8500_PRCMU_BASE + 0x044)
+#define PRCM_MCDECLK_MGT           (U8500_PRCMU_BASE + 0x064)
+#define PRCM_HDMICLK_MGT           (U8500_PRCMU_BASE + 0x058)
+#define PRCM_TVCLK_MGT             (U8500_PRCMU_BASE + 0x07c)
+#define PRCM_DSI_PLLOUT_SEL        (U8500_PRCMU_BASE + 0x530)
+#define PRCM_DSITVCLK_DIV          (U8500_PRCMU_BASE + 0x52C)
+#define PRCM_APE_RESETN_SET        (U8500_PRCMU_BASE + 0x1E4)
+#define PRCM_APE_RESETN_CLR        (U8500_PRCMU_BASE + 0x1E8)
+
+/* ePOD and memory power signal control registers */
+#define PRCM_EPOD_C_SET            (U8500_PRCMU_BASE + 0x410)
+#define PRCM_SRAM_LS_SLEEP         (U8500_PRCMU_BASE + 0x304)
+
+/* Debug power control unit registers */
+#define PRCM_POWER_STATE_SET       (U8500_PRCMU_BASE + 0x254)
+
+/* Miscellaneous unit registers */
+#define PRCM_DSI_SW_RESET          (U8500_PRCMU_BASE + 0x324)
+
+#define PRCMU_CLAMP_DSS_DSIPLL		0x00600C00
+#define PRCMU_RESET_DSS			0x0000000C
+#define PRCMU_ENABLE_DSS_MEM		0x00200000
+#define PRCMU_ENABLE_DSS_LOGIC		0x00100000
+#define PRCMU_DSS_SLEEP_OUTPUT_MASK	0x400
+#define PRCMU_UNCLAMP_DSS_DSIPLL	0x00600C00
+#define PRCMU_POWER_ON_DSI		0x00008000
+
+#define PRCMU_MCDE_CLOCK_SETTING	0x00000125
+#define PRCMU_ENABLE_PLLDSI		0x00000001
+#define PRCMU_RELEASE_RESET_DSS		0x0000400C
+#define PRCMU_DSI_PLLOUT_SEL_SETTING	0x00000202
+#define PRCMU_DSI_RESET_SW		0x00000007
+
+#define PRCMU_DSI_CLOCK_SETTING		0x00000148
+#define PRCMU_PLLDSI_FREQ_SETTING	0x00020123
+#define PRCMU_DSI_LP_CLOCK_SETTING	0x00000F00
+#define PRCMU_ENABLE_ESCAPE_CLOCK	0x07030101
+
+#define PRCMU_MCDE_DELAY			2
+
 void mcde_enable_dss(void)
 {
-	/* Setup clocks */
-	#define MCDE_PRCM_MMIP_LS_CLAMP_SET     0x420
-	#define MCDE_PRCM_APE_RESETN_CLR        0x1E8
-	#define MCDE_PRCM_EPOD_C_SET            0x410
-	#define MCDE_PRCM_SRAM_LS_SLEEP         0x304
-	#define MCDE_PRCM_MMIP_LS_CLAMP_CLR     0x424
-	#define MCDE_PRCM_POWER_STATE_SET       0x254
-	#define MCDE_PRCM_LCDCLK_MGT            0x044
-	#define MCDE_PRCM_MCDECLK_MGT           0x064
-	#define MCDE_PRCM_HDMICLK_MGT           0x058
-	#define MCDE_PRCM_TVCLK_MGT             0x07c
-	#define MCDE_PRCM_PLLDSI_FREQ           0x500
-	#define MCDE_PRCM_PLLDSI_ENABLE         0x504
-	#define MCDE_PRCM_APE_RESETN_SET        0x1E4
-	#define MCDE_PRCM_DSI_PLLOUT_SEL        0x530
-	#define MCDE_PRCM_DSITVCLK_DIV          0x52C
-	#define MCDE_PRCM_DSI_SW_RESET          0x324
-
-	/* Clamp DSS out, DSIPLL in/out, (why not DSS input?) */
 	u32 temp;
-
-	u8* prcmu  = (u8 *)CFG_PRCMU_BASE;
-
-	writel(0x00600C00, &prcmu[MCDE_PRCM_MMIP_LS_CLAMP_SET]);
-	mdelay(2);
+	/* Clamp DSS out, DSIPLL in/out, (why not DSS input?) */
+	writel(PRCMU_CLAMP_DSS_DSIPLL, PRCM_MMIP_LS_CLAMP_SET);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Enable DSS_M_INITN, DSS_L_RESETN, DSIPLL_RESETN resets */
-	writel(0x0000000C, &prcmu[MCDE_PRCM_APE_RESETN_CLR]);
-	mdelay(2);
+	writel(PRCMU_RESET_DSS, PRCM_APE_RESETN_CLR);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Power on DSS mem */
-	writel(0x00200000, &prcmu[MCDE_PRCM_EPOD_C_SET]);
-	mdelay(2);
+	writel(PRCMU_ENABLE_DSS_MEM, PRCM_EPOD_C_SET);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Power on DSS logic */
-	writel(0x00100000, &prcmu[MCDE_PRCM_EPOD_C_SET]);
-	mdelay(2);
+	writel(PRCMU_ENABLE_DSS_LOGIC, PRCM_EPOD_C_SET);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Release DSS_SLEEP */
-	temp = readl(&prcmu[MCDE_PRCM_SRAM_LS_SLEEP]);
-	writel(temp & ~0x400, &prcmu[MCDE_PRCM_SRAM_LS_SLEEP]);
-	mdelay(2);
+	temp = readl(PRCM_SRAM_LS_SLEEP);
+	writel(temp & ~PRCMU_DSS_SLEEP_OUTPUT_MASK, PRCM_SRAM_LS_SLEEP);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Unclamp DSS out, DSIPLL in/out, (why not DSS input?) */
-	writel(0x00600C00, &prcmu[MCDE_PRCM_MMIP_LS_CLAMP_CLR]);
-	mdelay(2);
+	writel(PRCMU_UNCLAMP_DSS_DSIPLL, PRCM_MMIP_LS_CLAMP_CLR);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Power on CSI_DSI */
-	writel(0x00008000, &prcmu[MCDE_PRCM_POWER_STATE_SET]);
-	mdelay(2);
-
-	/* PLLDIV=8, PLLSW=2, CLKEN=1 */
-	writel(0x00000148, &prcmu[MCDE_PRCM_LCDCLK_MGT]);
-	mdelay(2);
-	/* PLLDIV=5, PLLSW=1, CLKEN=1 */
-	writel(0x00000125, &prcmu[MCDE_PRCM_MCDECLK_MGT]);
-	mdelay(2);
+	writel(PRCMU_POWER_ON_DSI, PRCM_POWER_STATE_SET);
+	mdelay(PRCMU_MCDE_DELAY);
+	writel(PRCMU_MCDE_CLOCK_SETTING, PRCM_MCDECLK_MGT);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* HDMI and TVCLK Should be handled somewhere else */
 	/* PLLDIV=5, PLLSW=2, CLKEN=1 */
-	writel(0x00000145, &prcmu[MCDE_PRCM_HDMICLK_MGT]);
-	mdelay(2);
+	writel(PRCMU_DSI_CLOCK_SETTING, PRCM_HDMICLK_MGT);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* PLLDIV=14, PLLSW=2, CLKEN=1 */
-	writel(0x00000145, &prcmu[MCDE_PRCM_TVCLK_MGT]);
-	mdelay(2);
-	/* D=32, N=1, R=4, SELDIV2=0 */
-	writel(0x00040120, &prcmu[MCDE_PRCM_PLLDSI_FREQ]);
-	mdelay(2);
+	writel(PRCMU_DSI_LP_CLOCK_SETTING, PRCM_TVCLK_MGT);
+	mdelay(PRCMU_MCDE_DELAY);
+
+	/* D=43, N=1, R=4, SELDIV2=0 */
+	writel(PRCMU_PLLDSI_FREQ_SETTING, PRCM_PLLDSI_FREQ);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Start DSI PLL */
-	writel(0x00000001, &prcmu[MCDE_PRCM_PLLDSI_ENABLE]);
-	mdelay(2);
+	writel(PRCMU_ENABLE_PLLDSI, PRCM_PLLDSI_ENABLE);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Release DSS_M_INITN, DSS_L_RESETN, DSIPLL_RESETN */
-	writel(0x0000400C, &prcmu[MCDE_PRCM_APE_RESETN_SET]);
-	mdelay(2);
+	writel(PRCMU_RELEASE_RESET_DSS, PRCM_APE_RESETN_SET);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* DSI0=phi/2, DSI1=phi/2 */
-	writel(0x00000202, &prcmu[MCDE_PRCM_DSI_PLLOUT_SEL]);
-	mdelay(2);
-	/* Enable ESC clk 0/1/2, div0=8, div1=8, div2=3 */
-	writel(0x07030303, &prcmu[MCDE_PRCM_DSITVCLK_DIV]);
-	mdelay(2);
+	writel(PRCMU_DSI_PLLOUT_SEL_SETTING, PRCM_DSI_PLLOUT_SEL);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Enable ESC clk 0/1/2, div2=3, div1=0x17, div0=0x17 */
+	writel(PRCMU_ENABLE_ESCAPE_CLOCK, PRCM_DSITVCLK_DIV);
+	mdelay(PRCMU_MCDE_DELAY);
 	/* Release DSI reset 0/1/2 */
-	writel(0x00000007, &prcmu[MCDE_PRCM_DSI_SW_RESET]);
-	mdelay(2);
-	dbg_printk("PRCMU setup done!\n");
+	writel(PRCMU_DSI_RESET_SW, PRCM_DSI_SW_RESET);
+	mdelay(PRCMU_MCDE_DELAY);
 }
 
 int mcde_init(u8 num_data_lanes)

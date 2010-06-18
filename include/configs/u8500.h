@@ -257,6 +257,11 @@
 */
 #define CONFIG_SYS_MCDE_REFRESH_TIME	50
 
+#define CONFIG_SYS_DISPLAY_NATIVE_X_RES	864
+#define CONFIG_SYS_DISPLAY_NATIVE_Y_RES	480
+/* 2.5V */
+#define CONFIG_SYS_DISPLAY_VOLTAGE	2500000
+
 /*------------------------------------------------------------------------------
  * base register values for U8500
  */
