@@ -64,25 +64,34 @@
 #define MTU_PCELL2	0xff8
 #define MTU_PCELL3	0xffC
 
-#define TIMER_CLOCK		(110 * 1000 * 1000)
-#define COUNT_TO_USEC(x)	((x) / 110)
-#define USEC_TO_COUNT(x)	((x) * 110)
+/*
+ * The MTU is clocked at 133 MHz by default. (V1 and later)
+ */
+#define TIMER_CLOCK		(133 * 1000 * 1000 / 16)
+#define COUNT_TO_USEC(x)	((x) * 16 / 133)
+#define USEC_TO_COUNT(x)	((x) * 133 / 16)
 #define TICKS_PER_HZ		(TIMER_CLOCK / CONFIG_SYS_HZ)
 #define TICKS_TO_HZ(x)		((x) / TICKS_PER_HZ)
+
+/*
+ * MTU timer to use (from 0 to 3).
+ * Linux ux500 timer0 on MTU0 and timer0 on MTU1
+ */
+#define MTU_TIMER 2
 
 static unsigned int timerbase;
 
 /* macro to read the 32 bit timer: since it decrements, we invert read value */
-#define READ_TIMER() (~readl(timerbase + MTU_VAL(0)))
+#define READ_TIMER() (~readl(timerbase + MTU_VAL(MTU_TIMER)))
 
-/* Configure a free-running, auto-wrap counter with no prescaler */
+/* Configure a free-running, auto-wrap counter with /16 prescaler */
 int timer_init(void)
 {
 	timerbase = u8500_is_earlydrop() ? U8500_MTU0_BASE_ED
 			: U8500_MTU0_BASE_V1;
 
-	writel(MTU_CRn_ENA | MTU_CRn_PRESCALE_1 | MTU_CRn_32BITS,
-	       timerbase + MTU_CR(0));
+	writel(MTU_CRn_ENA | MTU_CRn_PRESCALE_16 | MTU_CRn_32BITS,
+	       timerbase + MTU_CR(MTU_TIMER));
 	reset_timer();
 	return 0;
 }
@@ -90,7 +99,7 @@ int timer_init(void)
 /* Restart counting from 0 */
 void reset_timer(void)
 {
-	writel(0, timerbase + MTU_LR(0)); /* Immediate effect */
+	writel(0, timerbase + MTU_LR(MTU_TIMER)); /* Immediate effect */
 }
 
 /* Return how many HZ passed since "base" */
