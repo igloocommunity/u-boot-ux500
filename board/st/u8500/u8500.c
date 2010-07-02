@@ -420,7 +420,6 @@ static void init_regs(void)
 		}
 	} else {
 		struct prcmu *prcmu = (struct prcmu *) U8500_PRCMU_BASE;
-		u32 tmp;
 
 		/* Enable timers */
 		writel(1 << 17, &prcmu->tcr);
@@ -434,13 +433,6 @@ static void init_regs(void)
 
 		u8500_prcmu_enable(&prcmu->uartclk_mgt);
 		u8500_prcmu_enable(&prcmu->i2cclk_mgt);
-
-		if (!u8500_is_earlydrop()) {
-			/* Switch SDMMCCLK to 52Mhz instead of 104Mhz */
-			tmp = readl(&prcmu->sdmmcclk_mgt);
-			tmp = (tmp & ~0x1f) | 16;
-			writel(tmp, &prcmu->sdmmcclk_mgt);
-		}
 
 		u8500_prcmu_enable(&prcmu->sdmmcclk_mgt);
 

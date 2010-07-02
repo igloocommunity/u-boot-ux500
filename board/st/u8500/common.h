@@ -128,7 +128,6 @@ typedef u32 t_logical_address;
 
 /*function prototypes*/
 void gpio_init(void);
-int  emmc_init (u8);
-extern int u8500_is_earlydrop(void);
+int u8500_is_earlydrop(void);
 
 #endif  /* _COMMON_H_ */

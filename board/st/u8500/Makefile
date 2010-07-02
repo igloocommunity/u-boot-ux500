@@ -25,7 +25,7 @@ include $(TOPDIR)/config.mk
 CFLAGS += -D__RELEASE -D__STN_8500
 LIB	= $(obj)lib$(BOARD).a
 
-COBJS	:= u8500.o flash.o gpio.o u8500_i2c.o mmc.o mmc_utils.o init_mmc.o emmc.o clock.o prcmu.o mcde_display.o mcde_hw.o ab8500vibra.o
+COBJS	:= u8500.o flash.o gpio.o u8500_i2c.o mmc_host.o mmc_utils.o clock.o prcmu.o mcde_display.o mcde_hw.o ab8500vibra.o
 
 SRCS	:= $(SOBJS:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))

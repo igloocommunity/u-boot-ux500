@@ -80,6 +80,7 @@
  * Devices and file systems
  */
 #define CONFIG_MMC		1
+#define CONFIG_GENERIC_MMC	1
 #define CONFIG_DOS_PARTITION	1
 
 /*
@@ -126,7 +127,7 @@
 	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
 		"init=init "						\
 		"board_id=${board_id} "					\
-		"logo.${logo} "					\
+		"logo.${logo} "						\
 		"startup_graphics=${startup_graphics}\0"		\
 	"emmcargs=setenv bootargs ${bootargs} "				\
 		"root=/dev/mmcblk0p2 "					\
@@ -135,7 +136,8 @@
 		"console=${console}\0"					\
 	"emmcboot=echo Booting from eMMC ...; "				\
 		"run commonargs emmcargs addcons memargs;"		\
-		"emmc_read ${loadaddr} 0x14000000 0x300000; "		\
+		"write_partition_block;"				\
+		"mmc read 0 ${loadaddr} 0xA0000 0x4000;"		\
 		"bootm ${loadaddr}\0"					\
 	"cmdfile=mmc init 1;mmc_read_cmd_file;run bootcmd\0"		\
 	"flash=mmc init 1;fatload mmc 1 ${loadaddr} flash.scr;"		\
@@ -211,6 +213,7 @@
  */
 #define MMC_BLOCK_SIZE			512
 #define CFG_MMC_BASE			0x80126000	/* MMC base for 8500  */
+#define CONFIG_MMC_DEV_NUM		1
 
 /*-----------------------------------------------------------------------
  * EMMC related configs
@@ -222,7 +225,8 @@
 #define CONFIG_CMD_SAVEENV	/* CMD_ENV is obsolete but used in env_emmc.c */
 #define CONFIG_ENV_IS_IN_EMMC		1
 #define CONFIG_ENV_OFFSET_START		0x13F80000
-#define CONFIG_ENV_OFFSET_END 		0x13FE0000
+#define CONFIG_ENV_OFFSET_END		0x13FE0000
+#define CONFIG_EMMC_DEV_NUM		0
 
 /*-----------------------------------------------------------------------
  * USB related configs
@@ -242,7 +246,7 @@
  * FLASH and environment organization
  */
 
-#define CONFIG_SYS_MAX_FLASH_SECT 	512	
+#define CONFIG_SYS_MAX_FLASH_SECT 	512
 #define CONFIG_SYS_MAX_FLASH_BANKS	1	/* max number of memory banks */
 
 /*-----------------------------------------------------------------------

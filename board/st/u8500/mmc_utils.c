@@ -21,880 +21,138 @@
  */
 #include <linux/ctype.h>
 
-#include <common.h>
+#include "common.h"
 #include <command.h>
+#include <mmc.h>
 #include <fat.h>
-#include "gpio.h"
-#include "mmc.h"                // MMC api
-#include "mmc_utils.h"          // to access MMC
-#include "mmc_p.h"              // t_mmc_register definition
 
-u32       MMCBuffer[1024] ;
-static int              IS_SD_CARD;
+#define PIB_EMMC_ADDR 0x00
 
-/* --- exported from other modules ---------------------------------------- */
-static  u8               selected_card = 0;
-extern  t_mmc_error           mmc_cmderror_2            (void);
-extern  t_mmc_error           mmc_cmdresp2error_2       (void);
-extern  t_mmc_error           mmc_cmdresp3error_2       (void);
-extern  t_mmc_error           mmc_cmdresp145error_2     (u8 cmd);
-extern  t_mmc_error           mmc_cmdreadresp           (u32 * tempbuff);
-extern  t_mmc_error           mmc_waitcmdreadresp       (void);
-extern  t_mmc_error           mmc_cmdwriteresp          (u8 cardno, u32 * tempbuff, u16 total_num_of_bytes);
-extern  t_mmc_error           mmc_waitcmdwriteresp      (u8 cardno, u32 * tempbuff, u16 total_num_of_bytes);
+struct partition {
+	unsigned char boot_ind;		/* 0x80 - active */
+	unsigned char head;		/* starting head */
+	unsigned char sector;		/* starting sector */
+	unsigned char cyl;		/* starting cylinder */
+	unsigned char sys_ind;		/* What partition type */
+	unsigned char end_head;		/* end head */
+	unsigned char end_sector;	/* end sector */
+	unsigned char end_cyl;		/* end cylinder */
+	u32 start_sect;      /* starting sector counting from 0 */
+	u32 nr_sects;		     /* nr of sectors in partition */
+} __attribute__((packed));
 
-extern  t_mmc_register  *t_mmc0;
-extern  u32         t_mmc_rel_addr;
+#define PART(type, start, num)			\
+	{					\
+		.boot_ind = 0x00,		\
+		.head = 0x03,			\
+		.sector = 0xD0,			\
+		.cyl = 0xff,			\
+		.sys_ind = type,		\
+		.end_head = 0x03,		\
+		.end_sector = 0xd0,		\
+		.end_cyl = 0xff,		\
+		.start_sect = start,		\
+		.nr_sects = num,		\
+	}
 
-t_mmc_boot_record             mmc_boot_record;
+static struct partition partitions_ed[] = {
+	[0] = PART(0x83, 0x000A0000,  0x00004000),	/* Kernel */
+	[1] = PART(0x83, 0x000A4000,  0x00080000),	/* Root file system */
+	[2] = PART(0x83, 0x00124000,  0x0022c000),
+	[3] = PART(0x0c, 0x00350000,  0x00b9a000),
+};
 
-void mmc_copyByteH (u8 * sourceAddr, u8 * destAddress, int size)
+static struct partition partitions_v1[] = {
+	[0] = PART(0x83, 0x000A0000,  0x00004000),	/* Kernel */
+	[1] = PART(0x83, 0x000A4000,  0x00080000),	/* Root file system */
+	[2] = PART(0x83, 0x00124000,  0x00000800),	/* Modem parameters */
+	[3] = {0},
+};
+
+#undef PART
+
+int write_partition_block(void)
 {
-    int                           i;
-    for (i = 0; i < size; i++)
-    {
-        *(destAddress + i) = *(sourceAddr + i);
-    }
+	int err;
+	u32 offset = PIB_EMMC_ADDR;
+	u8 mbr[512];
+	u8 emmc_existing_partition[512];
+	struct mmc *boot_dev = NULL;
+
+	memset(mbr, 0, 0x1be);
+	if (u8500_is_earlydrop())
+		memcpy(mbr + 0x1be, partitions_ed, sizeof(partitions_ed));
+	else
+		memcpy(mbr + 0x1be, partitions_v1, sizeof(partitions_v1));
+
+	/* magic */
+	mbr[0x1fe] = 0x55;
+	mbr[0x1ff] = 0xAA;
+
+	printf("Writing partition block (if needed)...\n");
+
+	boot_dev = find_mmc_device(CONFIG_EMMC_DEV_NUM);
+	if (!boot_dev) {
+		printf(" Error: eMMC device not found\n");
+		return 1;
+	}
+
+	err =  boot_dev->block_dev.block_read(CONFIG_EMMC_DEV_NUM,
+					offset,
+					1,
+					(void *) emmc_existing_partition);
+	if (err != 1)	{
+		printf(" Error: eMMC read failed\n");
+		return 1;
+	}
+
+	if (memcmp((void *)emmc_existing_partition, (void *)mbr, 512)) {
+		err = boot_dev->block_dev.block_write(CONFIG_EMMC_DEV_NUM,
+						offset,
+						1,
+						(void *) mbr);
+		if (err != 1) {
+			printf(" Error: eMMC write failed\n");
+			return 1;
+		}
+	}
+	printf(" eMMC partition block exists now\n");
+	return 0;
 }
 
-void mmc_shift_memH (int num_of_words, u32 * start_address, u32 * dest_address, u32 shift)
-{
-    u32                     *address;
-    int                           word = 0;
-    u32                      high;
-    int                           i, word_offset, bit_offset;
-
-    word_offset = (int) (shift / 32);
-    bit_offset  = (int) (shift % 32);
-    for (i = 0; i < num_of_words; i++)
-    {
-        *(dest_address + i) = 0;
-    }
-    for (i = word_offset; i < num_of_words; i++)
-    {
-        *(dest_address + i - word_offset) = *(start_address + i);
-    }
-    address = dest_address;
-    for (word = 0; word < num_of_words - 1; word++)
-    {
-        *address = (*address) >> bit_offset;
-        address++;
-        high = (*address << (32 - bit_offset));
-        *(address - 1) |= high;
-    }
-    *address = (*address) >> bit_offset;
-}
-
-u8 convert_from_bytes_to_power_of_two (u16 no_of_bytes)
-{
-    u8                       count = 0;
-    while (no_of_bytes != 1)
-    {
-        no_of_bytes >>= 1;
-        count++;
-    }
-    return count;
-}
-
-t_mmc_error mmc_enable ()
-{
-    t_mmc_error                   error = MMC_OK;
-    t_mmc_command_control         commcontrol;
-    t_bool                        validvoltage = FALSE;
-    u32                      arg, response;
-    int i;
-
-    IS_SD_CARD = 0;
-
-    selected_card       = 0;
-
-    t_mmc0->mmc_Power = 0x1BF;
-    t_mmc0->mmc_Clock = 0x41FF;
-
-    commcontrol.IsRespExpected  = FALSE;
-    commcontrol.IsLongResp      = FALSE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    error   = mmc_sendcommand (MMC_GO_IDLE_STATE, 0x00000000, commcontrol);
-
-    error   = mmc_cmderror_2 ();
-
-    //// Added by Chris Sebastian for SD Card support:
-    //// Send ACMD41.  If we do not get a response, it is not an SD card.
-    ////               If we do get a response, loop until card is not busy.
-
-    commcontrol.IsRespExpected  = TRUE;
-    commcontrol.IsLongResp      = FALSE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    for(i = 200; i; i--) {
-        error = mmc_sendcommand (MMC_APP_CMD, 0x00000000, commcontrol);      // Let the card know that the next command is an app-cmd.
-        error = mmc_cmdresp145error_2(MMC_APP_CMD);
-        error = mmc_sendcommand (SD_SEND_OP_COND, 0x00060000, commcontrol);  // I got the 0x00060000 from Linux kernel source.
-        error = mmc_cmdresp3error_2 ();
-        t_mmc0->mmc_Clear = ClrStaticFlags; //clear all the static status flags.  CmdResp3Error_2 leaves some bits set.
-        if (t_mmc0->mmc_Response0 & 0x80000000) {
-            printf("SD card detected \n");
-            IS_SD_CARD = 1;
-            return MMC_OK; // SD CARD DETECTED.  Do not continue with MMC init logic.  Quick escape!
-        }
-    }
-
-    commcontrol.IsRespExpected  = FALSE;
-    commcontrol.IsLongResp      = FALSE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    error   = mmc_sendcommand (MMC_GO_IDLE_STATE, 0x00000000, commcontrol);
-    error   = mmc_cmderror_2 ();
-
-    arg     = 0x00060000;  // High Voltage MMC, byte mode.  Was 0x00FFC000, but that writes to reserved bits...
-    while (!validvoltage)
-    {
-        // send CMD1 (SEND_OP_COND)
-        commcontrol.IsRespExpected = TRUE;
-        error   = mmc_sendcommand (MMC_SEND_OP_COND, arg, commcontrol);
-
-        error   = mmc_cmdresp3error_2 ();
-
-        if (error != MMC_OK)
-        {
-            goto end;
-        }
-        mmc_getresponse (MMC_SHORT_RESP, &response);
-
-        arg = response;
-        validvoltage = (t_bool) (((response >> 31) == 1) ? 1 : 0);
-
-    }
-end:
-    return error;
-}
-
-t_mmc_error  mmc_disable ()
-{
-    t_mmc_error                   error = MMC_OK;
-    t_mmc_power_state             powerstate = MMC_POWER_OFF;
-
-    error   = mmc_setpowerstate (powerstate);
-    return error;
-}
-
-t_mmc_error                   mmc_initCard ()
-{
-    t_mmc_error                   error = MMC_OK;
-    t_mmc_command_control         commcontrol;
-    t_mmc_bus_configuration       busconfig;
-    t_mmc_clock_control           clockcontrol;
-
-    // send CMD2 (ALL_SEND_CID)
-    commcontrol.IsRespExpected  = TRUE;
-    commcontrol.IsLongResp      = TRUE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    error = mmc_sendcommand (MMC_ALL_SEND_CID, 0x00000000, commcontrol);
-    error = mmc_cmdresp2error_2 ();
-    // error is MMC_CMD_CRC_FAIL on COB board ?!
-    // if( error != MMC_OK)
-    // goto end;
-
-    // send CMD3 (SET_RELATIVE_ADDR)
-
-    commcontrol.IsLongResp      = FALSE;
-    error               = mmc_sendcommand       (MMC_SET_REL_ADDR, t_mmc_rel_addr, commcontrol);
-    error               = mmc_cmdresp145error_2 (MMC_SET_REL_ADDR);
-    if(IS_SD_CARD) {
-        t_mmc_rel_addr = t_mmc0->mmc_Response0 & 0xFFFF0000;
-    }
-
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    busconfig.mode      = MMC_PUSH_PULL;
-    busconfig.rodctrl   = MMC_DISABLE;
-    error               = mmc_configbus (busconfig);
-    clockcontrol.pwrsave= MMC_DISABLE;
-    clockcontrol.bypass = MMC_DISABLE;
-    clockcontrol.widebus= MMC_DISABLE;
-    error = mmc_setclockfrequency(0x00);	/* 26 MHz */
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    error = mmc_configclockcontrol (clockcontrol);
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-end:
-    return error;
-}
-
-t_mmc_error mmc_readblock (u8 cardno, u32 addr, u32 * readbuff, u16 blocksize, t_mmc_transfer_mode mmc_transfer_mode)
-{
-    t_mmc_error                   error = MMC_OK;
-    u8                       power;
-    t_mmc_command_control         commcontrol;
-    u32                      response;
-
-    commcontrol.IsRespExpected  = TRUE              ;
-    commcontrol.IsLongResp      = FALSE             ;
-    commcontrol.IsInterruptMode = FALSE             ;
-    commcontrol.IsPending       = FALSE             ;
-    commcontrol.cmdpath         = MMC_ENABLE        ;
-    error                       = mmc_setdatapath   (MMC_DISABLE);
-    error                       = mmc_handledma     (MMC_DISABLE);
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    // send command for selecting the card
-    if (cardno != selected_card)
-    {
-        error   = mmc_sendcommand       (MMC_SEL_DESEL_CARD, t_mmc_rel_addr, commcontrol);
-        error   = mmc_cmdresp145error_2 (MMC_SEL_DESEL_CARD);
-        if (error != MMC_OK)
-        {
-            goto end;
-        }
-        else
-        {
-            selected_card = cardno;
-        }
-    }
-    error       = mmc_getresponse (MMC_SHORT_RESP, &response);
-    if (response & 0x02000000)
-    {
-        return MMC_LOCK_UNLOCK_FAILED;
-    }
-    // set the block size,both on controller and card
-    if ((blocksize > 0) && (blocksize <= 2048) && ((blocksize & (blocksize - 1)) == 0))
-    {
-        power = convert_from_bytes_to_power_of_two (blocksize);
-        error = mmc_setdatablocklength  (power);
-        error = mmc_sendcommand         (MMC_SET_BLOCKLEN, (u32) blocksize, commcontrol);
-        error = mmc_cmdresp145error_2   (MMC_SET_BLOCKLEN);
-        if (error != MMC_OK)
-        {
-            return error;
-        }
-    }
-    else
-    {
-        error = MMC_INVALID_PARAMETER;
-        goto end;
-    }
-    error = mmc_setdatalength           (blocksize  );
-    error = mmc_setdatatimeout          (0xefffffff );
-    error = mmc_settransferdirection    (MMC_READ   );
-    error = mmc_settransfertype         (MMC_BLOCK  );
-    error = mmc_setdatapath             (MMC_ENABLE);
-    //t_mmc0->mmc_DataCtrl	|=             (ReadDir & ~StreamMode) | DataPathEnable;
-    error = mmc_sendcommand             (MMC_READ_SINGLE_BLOCK, addr, commcontrol);
-    error = mmc_cmdresp145error_2       (MMC_READ_SINGLE_BLOCK);
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    if (mmc_transfer_mode == MMCDMA)
-    {
-        error = mmc_waitcmdreadresp ();
-    }
-    else
-    {
-        error = mmc_cmdreadresp (readbuff);
-    }
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-end:
-    return error;
-}
-
-t_mmc_error mmc_writeblock (u8 cardno, u32 addr, u32 * writebuff, u16 blocksize, t_mmc_transfer_mode mmc_transfer_mode)
-{
-    t_mmc_error                   error = MMC_OK;
-    u8                       power;
-    t_mmc_command_control         commcontrol;
-    u32                      response;
-
-    commcontrol.IsRespExpected  = TRUE;
-    commcontrol.IsLongResp      = FALSE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    error = mmc_setdatapath         (MMC_DISABLE);
-    error = mmc_handledma           (MMC_DISABLE);
-    error = mmc_settransferdirection(MMC_WRITE);
-    error = mmc_settransfertype     (MMC_BLOCK);
-
-    if (cardno != selected_card)
-    {
-        error = mmc_sendcommand (MMC_SEL_DESEL_CARD, t_mmc_rel_addr, commcontrol);
-        error = mmc_cmdresp145error_2 (MMC_SEL_DESEL_CARD);
-        if (error != MMC_OK)
-        {
-            goto end;
-        }
-        else
-        {
-            selected_card = cardno;
-        }
-    }
-
-    mmc_getresponse (MMC_SHORT_RESP, &response);
-    if (response & 0x02000000)
-    {
-        return MMC_LOCK_UNLOCK_FAILED;
-    }
-    // set the block size,both on controller and card
-    if ((blocksize > 0) && (blocksize <= 2048) && (((blocksize & (blocksize - 1)) == 0)))
-    {
-        power = convert_from_bytes_to_power_of_two (blocksize);
-        error = mmc_setdatablocklength (power);
-        error = mmc_sendcommand (MMC_SET_BLOCKLEN, (u32) blocksize, commcontrol);
-        error = mmc_cmdresp145error_2 (MMC_SET_BLOCKLEN);
-        if (error != MMC_OK)
-        {
-            goto end;
-        }
-    }
-    else
-    {
-        error = MMC_INVALID_PARAMETER;
-        goto end;
-    }
-
-    error = mmc_setdatalength           (blocksize);
-    error = mmc_setdatatimeout          (0xefffffff);
-    error = mmc_settransferdirection    (MMC_WRITE);
-    error = mmc_settransfertype         (MMC_BLOCK);
-    error = mmc_setdatapath         (MMC_ENABLE);
-    error = mmc_sendcommand         (MMC_WRITE_SINGLE_BLOCK, addr, commcontrol);
-    error = mmc_cmdresp145error_2   (MMC_WRITE_SINGLE_BLOCK);
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    if (mmc_transfer_mode == MMCDMA)
-    {
-        error = mmc_waitcmdwriteresp (cardno, writebuff, blocksize);
-    }
-    else
-    {
-        error = mmc_cmdwriteresp (cardno, writebuff, blocksize);
-    }
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-end:
-    return error;
-}
-
-t_mmc_error mmc_readcsd (u32 * CSD)
-{
-    t_mmc_error                   error = MMC_OK;
-    t_mmc_command_control         commcontrol;
-    u32                      buf[4];
-
-    // send CMD9 (SEND CSD)
-    commcontrol.IsRespExpected  = TRUE;
-    commcontrol.IsLongResp      = TRUE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    error = mmc_sendcommand     (MMC_SEND_CSD,  t_mmc_rel_addr, commcontrol);
-    error = mmc_cmdresp2error_2 ();
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    error = mmc_getresponse (MMC_LONG_RESP, buf);
-    CSD[0] = buf[3];
-    CSD[1] = buf[2];
-    CSD[2] = buf[1];
-    CSD[3] = buf[0];
-end:
-    return error;
-}
-
-t_mmc_error mmc_select_n_switch(void)
-{
-    t_mmc_error                   error = MMC_OK;
-    t_mmc_command_control         commcontrol;
-    /* t_mmc_clock_control           clockcontrol; */
-    u32                           response;
-    u8                            cardno = 1;
-
-    commcontrol.IsRespExpected  = TRUE;
-    commcontrol.IsLongResp      = FALSE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    // send command for selecting the card
-    if (cardno != selected_card)
-    {
-        error = mmc_sendcommand(MMC_SEL_DESEL_CARD, t_mmc_rel_addr, commcontrol);
-        error = mmc_cmdresp145error_2(MMC_SEL_DESEL_CARD);
-        if (error != MMC_OK)
-        {
-            goto end;
-        }
-        else
-        {
-            selected_card = cardno;
-        }
-    }
-    error = mmc_getresponse(MMC_SHORT_RESP, &response);
-    if (response & 0x02000000)
-    {
-        error =  MMC_LOCK_UNLOCK_FAILED;
-        goto end;
-    }
-    /* XXX: what is this, why is it commented out, why is it here at all? */
-    /*
-    error = mmc_sendcommand (MMC_APP_CMD, 0x00000000, commcontrol);
-    error = mmc_cmdresp145error_2(MMC_APP_CMD);
-    error = mmc_sendcommand (6, 0x2, commcontrol);
-    error = mmc_cmdresp145error_2(6);
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    clockcontrol.pwrsave= MMC_DISABLE;
-    clockcontrol.bypass = MMC_DISABLE;
-    clockcontrol.widebus= MMC_ENABLE;
-    error = mmc_configclockcontrol (clockcontrol);
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    */
-end:
-    return error;
-}
-
-t_mmc_error mmc_readcid (u32 * CID)
-{
-    t_mmc_error                   error = MMC_OK;
-    t_mmc_command_control         commcontrol;
-    u32                      buf[4];
-
-    // send CMD9 (SEND CSD)
-    commcontrol.IsRespExpected  = TRUE;
-    commcontrol.IsLongResp      = TRUE;
-    commcontrol.IsInterruptMode = FALSE;
-    commcontrol.IsPending       = FALSE;
-    commcontrol.cmdpath         = MMC_ENABLE;
-
-    error = mmc_sendcommand     (MMC_SEND_CID, t_mmc_rel_addr, commcontrol);
-    error = mmc_cmdresp2error_2 ();
-    if (error != MMC_OK)
-    {
-        goto end;
-    }
-    error = mmc_getresponse (MMC_LONG_RESP, buf);
-    CID[0] = buf[3];
-    CID[1] = buf[2];
-    CID[2] = buf[1];
-    CID[3] = buf[0];
-end:
-    return error;
-}
-
-t_mmc_error mmc_read_file (char *filename, u32 address, u32 * FileSize)
-{
-    u8                      *mem_address = (u8 *) address;
-    u8                       sector[512];
-    u16                      BytesPerSector;
-    u32                      BRStartSector;
-    u32                      FATStartSector;
-    u32                      DataStartSector;
-    u32                      FileStartSector;
-    u16                      SectorsPerFAT;
-    u8                       SectorsPerCluster;
-    u8                       k;
-    u16                      MaxRDEntries;
-    u16                      ReservedSectors;
-    u32                      RDStartSector, j;
-    char                          nomefile[12] = "           ";
-    int                           filelength;
-    u16                      FileStartCluster = 0;
-    t_mmc_error                   response, response2;
-    int                           i, goout, found, result = PASS;
-    u32                      CSD[4];
-    char                          mmcfilename[] = "           ";
-    char                         *dotpos;
-
-    /////////// Attention please:  /////////////////////
-    //                                                //
-    // if other Alternate function apart from MMCI    //
-    // are selected, the MMCI I/F has some problems   //
-    //                                                //
-    ////////////////////////////////////////////////////
-
-    gpio_altfuncenable(GPIO_ALT_SD_CARD0, "MMC");
-    // Power-on the controller
-    response = mmc_enable ();
-
-    if (response != MMC_OK)
-    {
-
-        response = mmc_enable (); // This actually IS necessary because it takes time for newly-inserted cards initialize.  ~Chris S.
-        if (response != MMC_OK)
-        {
-            printf ("Error in card power on\n");
-            result = FAIL;
-            goto end;
-        }
-    }
-    // Initialise the cards on the bus, if any
-    response = mmc_initCard ();
-
-    if (response != MMC_OK)
-    {
-        printf ("Error in card initialization\n");
-        result = FAIL;
-        goto end;
-    }
-    // Get card info: CID, CSD, RCA registers
-    response = mmc_readcsd (CSD);
-
-    if (response != MMC_OK)
-    {
-        printf ("Error while fetching card info\n");
-        result = FAIL;
-        goto end;
-    }
-
-    // Select card and switch to 4-Bit, TODO HS if possible
-    response = mmc_select_n_switch ();
-
-    if (response != MMC_OK)
-    {
-        printf ("Error while select or switching to 4-bit/HS\n");
-        goto end;
-    }
-
-    // Read the MBR
-    response = mmc_readblock (1, 0, (u32 *) sector, 512, MMCPOLLING);
-
-    if (response != MMC_OK)
-    {
-        printf ("Error while reading boot record\n");
-        result = FAIL;
-        goto end;
-    }
-    if (sector[446] == 0x00 || sector[446] == 0x80)
-    {                           // found a MBR at the beginning of card
-        BRStartSector = sector[454];
-    }
-    else
-    {                           // BR at the beginning of card
-        BRStartSector = 0x00;
-    }
-    // Read the BR
-    response = mmc_readblock (1, (u32) (512 * BRStartSector), (u32 *) & mmc_boot_record, 512, MMCPOLLING);
-
-    k = 0;
-    while (response == MMC_DATA_CRC_FAIL && (k < 2))
-    {
-        response = mmc_readblock (1, (u32) (512 * BRStartSector), (u32 *) & mmc_boot_record, 512, MMCPOLLING);
-        k++;
-    }
-    if (response != MMC_OK)
-    {
-        printf ("Error while reading boot record\n");
-        result = FAIL;
-        goto end;
-    }
-    mmc_copyByteH        (mmc_boot_record.BytesPerSector, (u8 *) & BytesPerSector, 2);
-    mmc_copyByteH        (mmc_boot_record.ReservedSectors, (u8 *) & ReservedSectors, 2);
-    FATStartSector      = BRStartSector + ReservedSectors;   // the field at offset 15 contains the number of reserved sectors at
-    // the beginning of the media including the boot sector
-    mmc_copyByteH        (mmc_boot_record.SectorsPerFat, (u8 *) & SectorsPerFAT, 2);
-    SectorsPerCluster   = mmc_boot_record.SectorsPerCluster[0];
-    mmc_copyByteH        (mmc_boot_record.NumOfRootEntries, (u8 *) & MaxRDEntries, 2);
-    FATStartSector      += SectorsPerFAT;
-    RDStartSector       = FATStartSector + SectorsPerFAT;
-    DataStartSector     = RDStartSector + (u32) ((MaxRDEntries * 32) / 512);
-
-
-
-    // convert filename into mmc compatible file name (upper case , <= 8+3 char, no dot, no extension)
-    filelength = strlen (filename);
-    dotpos = strchr (filename, '.');
-    if (dotpos == NULL)
-    {
-        // no dot
-        if (filelength <= 8)
-        {
-            for (j = 0; j < filelength; j++)
-            {
-                mmcfilename[j] = (char) toupper (filename[j]);
-            }
-        }
-        else
-        {
-            for (j = 0; j < 6; j++)
-            {
-                mmcfilename[j] = (char) toupper (filename[j]);
-            }
-            mmcfilename[7] = '~';
-            mmcfilename[8] = '1';
-            filelength = 8;
-        }
-    }
-    else
-    {
-        // dot
-        if ((dotpos - filename) <= 8)
-        {
-            for (j = 0; j < (dotpos - filename); j++)
-            {
-                mmcfilename[j] = (char) toupper (filename[j]);
-            }
-            for (; j < 8; j++)
-            {
-                mmcfilename[j] = ' ';
-            }
-            // copy 3 char after .
-            mmcfilename[j++] = (char) toupper (dotpos[1]);
-            mmcfilename[j++] = (char) toupper (dotpos[2]);
-            mmcfilename[j++] = (char) toupper (dotpos[3]);
-
-        }
-        else
-        {
-            for (j = 0; j < 6; j++)
-            {
-                mmcfilename[j] = (char) toupper (filename[j]);
-            }
-            mmcfilename[6] = '~';
-            mmcfilename[7] = '1';
-            // copy 3 char after .
-            mmcfilename[8] = (char) toupper (dotpos[1]);
-            mmcfilename[9] = (char) toupper (dotpos[2]);
-            mmcfilename[10] = (char) toupper (dotpos[3]);
-        }
-        filelength = 11;
-    }
-    mmcfilename[11] = '\0';
-
-
-    // search Root Directory for entry filename
-    goout = 0;
-    found = 0;
-    for (j = 0; j < (DataStartSector - RDStartSector); j++)
-    {
-        if (goout == 1)
-            break;
-        response = mmc_readblock (1, (u32) ((RDStartSector + j) * 512), (u32 *) sector, 512, MMCPOLLING);
-        if (response != MMC_OK)
-        {
-            printf ("Error while reading root directory\n");
-            result = FAIL;
-            goto end;
-        }
-
-        for (i = 0; i < 512; i += 32)
-        {
-            strncpy (nomefile, (char *) &sector[i], filelength);
-            if (strcmp (nomefile, mmcfilename) == 0)
-            {
-                mmc_copyByteH (&sector[i + 26], (u8 *) & FileStartCluster, 2);
-                mmc_copyByteH (&sector[i + 28], (u8 *) FileSize, 4);
-                FileStartCluster -= 2;
-                goout = 1;
-                found = 1;
-                break;
-            }
-            if (nomefile[0] == 0)
-            {                   // end of Root Directory
-                goout = 1;
-                break;
-            }
-        }
-    }
-
-    // size of file                : *FileSize ( 32 bits quantum)
-    // number of bytes per sector  : BytesPerSector
-    // Beginning of file           : FileStartSector
-
-    printf ("Bytes per sector    : %d \n", BytesPerSector    );
-    printf ("Sectors per cluster : %d \n", SectorsPerCluster );
-    if (found)
-    {
-        u32    remaining =  *FileSize     ;
-        u32    count;
-        u32    burstsize = BytesPerSector ;
-
-        FileStartSector     = ( DataStartSector + (u32)(FileStartCluster * SectorsPerCluster))  ;
-        printf                 ("Reading file %s from MMC ..., start sector = %d, address 0x%x \n",filename,FileStartSector,address);
-        count               = SectorsPerCluster - (FileStartSector % SectorsPerCluster) ;
-        FileStartSector     = FileStartSector * BytesPerSector; // the first burst might be different to align of clusters
-
-        do
-        {
-            if ( remaining >= burstsize )
-            {   // read straight burst
-
-                k = 0;
-                do
-                {
-                    response = mmc_readblock (1, (u32) FileStartSector ,  (u32 *) mem_address, burstsize , MMCPOLLING);
-                    k++;
-
-                }   while ((response==MMC_DATA_CRC_FAIL)&&(k<4));
-                if ( k != 1) printf ("!");
-                FileStartSector += burstsize;
-                mem_address     += burstsize;
-                remaining       -= burstsize;
-            }
-            else
-            {   // read burst +1 and perform memcpy
-
-                burstsize = ((remaining + (BytesPerSector-1))/BytesPerSector) * BytesPerSector ;
-                k = 0;
-                do
-                {
-                    response = mmc_readblock (1, (u32) FileStartSector ,  (u32 *) MMCBuffer , burstsize , MMCPOLLING);
-                    k++;
-                }   while ((response==MMC_DATA_CRC_FAIL)&&(k<4));
-                if ( k != 1) printf ("!");
-                memcpy ((char *) mem_address, (char *)MMCBuffer,remaining);
-                remaining = 0;
-            }
-            if (response != MMC_OK)
-            {
-                printf ("Error while reading file %s\n", filename);
-                result = FAIL;
-                goto end;
-            }
-        }   while ( remaining );
-
-    }
-    else
-    {
-        printf ("Unable to find %s on Multi Media Card\n", filename);
-        response = MMC_INVALID_PARAMETER;
-        result = FAIL;
-        goto end;
-    }
-
-end:
-
-    return response;
-}
+U_BOOT_CMD(
+	write_partition_block, 1, 0, write_partition_block,
+	"- write partition block on emmc device\n",
+	NULL
+);
 
 /*
  * command line commands
  */
-
-static char       mmc_cmdbuffer[1024] ;
-
-static int copy_file_mmc (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
-{
 #ifdef CONFIG_CMD_FAT
-    unsigned long       address;
-    long sz;
-
-    address  = simple_strtoul (argv[2], 0, 16);
-
-    printf("copy_file_mmc : filename = %s\n", argv[1]);
-    printf("copy_file_mmc : address = %lx\n", address);
-
-    sz = file_fat_read(argv[1], (void *)address, 0);
-    if (sz == -1)
-    {
-        printf("copy_file_mmc error : in loading file \n");
-        return 1;
-    }
-
-    return 0;
-#else
-    unsigned long       address;
-    unsigned long       filesize;
-    int                 load_result = 1;
-    unsigned long       error_name  = 0;
-    char                filename[30]        ;
-    {
-        strcpy(filename , argv[1]);
-        address  = simple_strtoul (argv[2],0,16);//argv[2];
-
-        printf("copy_file_mmc : filename = %s\n",filename);
-        printf("copy_file_mmc : address = %lx\n",address);
-
-        load_result      = mmc_read_file(filename,address,&filesize);
-        if (load_result != 0)
-        {
-            error_name   = (unsigned long) (-load_result);
-            printf("copy_file_mmc error : in loading file \n");
-        }
-        return(0);
-    }
-#endif
-}
-
-static int mmc_read_cmd_file (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int mmc_read_cmd_file(cmd_tbl_t *cmdtp, int flag, int argc,
+			     char *argv[])
 {
-#ifdef CONFIG_CMD_FAT
-    long sz;
+	long sz;
+	char mmc_cmdbuffer[1024];
 
-    sz = file_fat_read("command.txt", &mmc_cmdbuffer, sizeof(mmc_cmdbuffer) - 1);
-    if (sz == -1)
-    {
-        printf("No command.txt found in the Card\n");
-        return 1;
-    }
+	sz = file_fat_read("command.txt", &mmc_cmdbuffer,
+			   sizeof(mmc_cmdbuffer) - 1);
+	if (sz == -1) {
+		printf("No command.txt found in the MMC/SD card\n");
+		return 1;
+	}
 
-    mmc_cmdbuffer[sz] = '\0';
-    setenv ("bootcmd", mmc_cmdbuffer);
-    return 0;
-#else
-    unsigned long       filesize;
-    int                 load_result = 1;
-    unsigned long       error_name  = 0;
-
-        load_result      = mmc_read_file("command.txt",(unsigned long)&mmc_cmdbuffer,&filesize);
-        if (load_result != 0)
-        {
-            error_name   = (unsigned long) (-load_result);
-            printf("mmc_read_cmd_file error : in loading file \n");
-        }
-        else
-        {
-            setenv ("bootcmd", mmc_cmdbuffer);
-        }
-        return(0);
-#endif
+	mmc_cmdbuffer[sz] = '\0';
+	setenv("bootcmd", mmc_cmdbuffer);
+	return 0;
 }
 
 U_BOOT_CMD(
-	copy_file_mmc,	3,	0,	copy_file_mmc,
-	"- copy file from mmc card\n",
-	"filename address\n"
-	"    - load binary file from the MMC/SD card to a memory address\n"
-);
-
-
-U_BOOT_CMD(
-	mmc_read_cmd_file,	1,	0,	mmc_read_cmd_file,
-	"- copy command file from mmc card\n",
+	mmc_read_cmd_file, 1, 0, mmc_read_cmd_file,
+	"- setup bootcmd env by reading command.txt file from MMC/SD card\n",
 	NULL
 );
+#endif
 
 /* ------------------------------- End of file ---------------------------- */

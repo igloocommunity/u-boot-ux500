@@ -29,7 +29,7 @@
 #include <environment.h>
 #include <linux/stddef.h>
 #include <malloc.h>
-#include <asm/arch/emmc.h>
+#include <mmc.h>
 
 #if defined(CONFIG_CMD_ENV) && defined(CONFIG_CMD_EMMC)
 #define CMD_SAVEENV
@@ -65,6 +65,62 @@ DECLARE_GLOBAL_DATA_PTR;
 uchar env_get_char_spec (int index)
 {
 	return ( *((uchar *)(gd->env_addr + index)) );
+}
+
+static int emmc_init(void)
+{
+	int i;
+	struct mmc *boot_dev = NULL;
+
+	for (i = 0;; i++) {
+		boot_dev = find_mmc_device(i);
+		if (!boot_dev)
+			return -1;
+		if (!strcmp(boot_dev->name, env_name_spec))
+			break;
+	}
+
+	return mmc_init(boot_dev);
+}
+static int emmc_read_write(u32 byte_offset, void *read_buffer,
+			   u32 size, u32 write)
+{
+	int i;
+	u32 xferred_bytes;
+	struct mmc *boot_dev = NULL;
+	u32 blkcnt;
+
+	for (i = 0;; i++) {
+		boot_dev = find_mmc_device(i);
+		if (!boot_dev)
+			return -1;
+		if (!strcmp(boot_dev->name, env_name_spec))
+			break;
+	}
+
+	if (write) {
+		blkcnt = size/boot_dev->write_bl_len;
+		if (size && !blkcnt)
+			blkcnt++;
+		xferred_bytes =
+		  boot_dev->block_dev.block_write(i,
+					    byte_offset/boot_dev->write_bl_len,
+						  blkcnt,
+						  (u_char *)read_buffer);
+		xferred_bytes *= boot_dev->write_bl_len;
+	} else {
+		blkcnt = size/boot_dev->read_bl_len;
+		if (size && !blkcnt)
+			blkcnt++;
+		xferred_bytes =
+		  boot_dev->block_dev.block_read(i,
+					     byte_offset/boot_dev->read_bl_len,
+						 blkcnt,
+						 (u_char *)read_buffer);
+		xferred_bytes *= boot_dev->read_bl_len;
+	}
+	debug("emmc read write:requested:0x%x,done:0x%x", size, xferred_bytes);
+	return xferred_bytes;
 }
 
 
@@ -131,21 +187,18 @@ int env_init(void)
 #ifdef CMD_SAVEENV
 int saveenv(void)
 {
-	ulong total;
 	int ret = 0;
 
-	puts ("Erasing eMMC...");
-	if (emmc_erase(CONFIG_ENV_OFFSET_START, CONFIG_ENV_OFFSET_END))
-		return 1;
-
 	puts ("Writing to EMMC... ");
-	total = CONFIG_ENV_SIZE;
-	ret = emmc_write(CONFIG_ENV_OFFSET_START, (u32 *) env_ptr,
-		       	CONFIG_ENV_SIZE);
-	//if (ret || total != CONFIG_ENV_SIZE)
-		//return 1;
+	env_crc_update();
+	ret = emmc_read_write(CONFIG_ENV_OFFSET_START, (void *) env_ptr,
+			      CONFIG_ENV_SIZE, 1);
 
-	puts ("done\n");
+	if (ret !=  CONFIG_ENV_SIZE)
+		puts("error in saving environment\n");
+	else
+		puts("done\n");
+
 	return ret;
 }
 #endif /* CMD_SAVEENV */
@@ -162,8 +215,8 @@ void env_relocate_spec (void)
 	tmp_env1 = (env_t *) malloc(CONFIG_ENV_SIZE);
 	tmp_env2 = (env_t *) malloc(CONFIG_ENV_SIZE);
 
-	emmc_read(CONFIG_ENV_OFFSET_START,(u32 *) tmp_env1, total);
-	emmc_read(CONFIG_ENV_OFFSET_START,(u32 *) tmp_env2, total);
+	emmc_read_write(CONFIG_ENV_OFFSET_START, (void *) tmp_env1, total, 0);
+	emmc_read_write(CONFIG_ENV_OFFSET_START, (void *) tmp_env2, total, 0);
 
 	crc1_ok = (crc32(0, tmp_env1->data, ENV_SIZE) == tmp_env1->crc);
 	crc2_ok = (crc32(0, tmp_env2->data, ENV_SIZE) == tmp_env2->crc);
@@ -204,18 +257,26 @@ void env_relocate_spec (void)
 void env_relocate_spec (void)
 {
 #if !defined(ENV_IS_EMBEDDED)
-	ulong total;
 	int ret;
 
-	total = CONFIG_ENV_SIZE;
-	printf("env_relocate_spec start\n");
-	emmc_init(4);	
-	ret = emmc_read(CONFIG_ENV_OFFSET_START, (u_char*)env_ptr, total);
-  	if (ret || total != CONFIG_ENV_SIZE)
-		return set_default_env();
+	ret = emmc_init();
 
-	if (crc32(0, env_ptr->data, ENV_SIZE) != env_ptr->crc)
-		return set_default_env();
+	ret = emmc_read_write(CONFIG_ENV_OFFSET_START,
+			      (void *)env_ptr, CONFIG_ENV_SIZE, 0);
+
+	if (ret != CONFIG_ENV_SIZE) {
+		printf("env read  failed so setting default env\n");
+		goto misc;
+	}
+
+	if (crc32(0, env_ptr->data, ENV_SIZE) != env_ptr->crc) {
+		printf("env crc failed so setting default env\n");
+		goto misc;
+	}
+	return;
+
+misc:
+	return set_default_env();
 #endif /* ! ENV_IS_EMBEDDED */
 }
 #endif /* CONFIG_ENV_OFFSET_REDUND */
