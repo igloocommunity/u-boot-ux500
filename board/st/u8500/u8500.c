@@ -385,7 +385,7 @@ int board_late_init(void)
 	}
 #endif /* CONFIG_MMC */
 #ifdef CONFIG_VIDEO_LOGO
-	(void) boottime_tag("splash");
+	boottime_tag("splash");
 	dss_init();
 #endif
 	/*

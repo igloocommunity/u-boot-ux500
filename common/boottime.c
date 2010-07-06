@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2010 ST-Ericsson AB
+ * Copyright (C) ST-Ericsson SA 2009-2010
  * Jonas Aaberg <jonas.aberg@stericsson.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,7 +18,6 @@
  *
  */
 
-
 #include <common.h>
 #include <boottime.h>
 #include <asm/byteorder.h>
@@ -29,11 +28,11 @@ static struct tag_boottime boottime = {
 	.total = 0,
 };
 
-int boottime_tag(char *name)
+void boottime_tag(char *name)
 {
 	if (boottime.num == BOOTTIME_MAX) {
 		printf("boottime: out of entries!\n");
-		return -1;
+		return;
 	}
 
 	strncpy((char *)boottime.entry[boottime.num].name,
@@ -43,9 +42,7 @@ int boottime_tag(char *name)
 	boottime.entry[boottime.num].time = get_timer_us();
 
 	boottime.num++;
-	return 0;
 }
-
 
 struct boottime_entry *boottime_get_entry(unsigned int i)
 {
@@ -54,7 +51,6 @@ struct boottime_entry *boottime_get_entry(unsigned int i)
 	else
 		return &boottime.entry[i];
 }
-
 
 void boottime_idle_add(unsigned long time)
 {
@@ -77,7 +73,30 @@ void boottime_remove_last(void)
 		boottime.num--;
 }
 
+static int do_boottime(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	unsigned int i;
+	struct boottime_entry *entry;
 
+	for (i = 0; i < BOOTTIME_MAX; i++) {
+		entry = boottime_get_entry(i);
+		if (entry == NULL)
+			break;
+		printf("%s: started at %lu ms\n", entry->name,
+		       (unsigned long)entry->time / 1000);
+	}
+	printf("idle: %d%% (%d ms)\n",
+	       100 * (int)boottime_idle_get() / (int)get_timer_us(),
+	       (int)boottime_idle_get() / 1000);
+	return 0;
+}
+
+U_BOOT_CMD(
+	boottime,	1,      1,      do_boottime,
+	"print boottime info",
+	""
+	"    - print boottime tags\n"
+);
 
 
 

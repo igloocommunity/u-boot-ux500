@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2010 ST-Ericsson AB
+ * Copyright (C) ST-Ericsson SA 2009-2010
  * Jonas Aaberg <jonas.aberg@stericsson.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,6 @@
 #ifndef BOOTTIME_H
 #define BOOTTIME_H
 
-
 #define BOOTTIME_MAX_NAME_LEN 64
 
 struct boottime_entry {
@@ -30,14 +29,14 @@ struct boottime_entry {
 };
 
 #ifdef CONFIG_BOOTTIME
-int boottime_tag(char *name);
+void boottime_tag(char *name);
 void boottime_remove_last(void);
 struct boottime_entry *boottime_get_entry(unsigned int i);
 unsigned long boottime_idle_get(void);
 unsigned long boottime_idle_done(void);
 void boottime_idle_add(unsigned long time);
 #else
-#define boottime_tag(x) 0
+#define boottime_tag(x)
 #define boottime_remove_last()
 #define boottime_idle_add(x)
 #endif

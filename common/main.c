@@ -216,9 +216,7 @@ static __inline__ int abortboot(int bootdelay)
 {
 	int abort = 0;
 
-#ifdef CONFIG_BOOTTIME
 	boottime_tag("autoboot_delay");
-#endif
 
 #ifdef CONFIG_MENUPROMPT
 	printf(CONFIG_MENUPROMPT);
