@@ -120,9 +120,13 @@
 	"verify=n\0"							\
 	"loadaddr=0x00100000\0"						\
 	"console=ttyAMA2,115200n8\0"					\
+	"memargs256=mem=96M@0 mem_modem=32M@96M mem=30M@128M "		\
+		"pmem=22M@158M pmem_hwb=44M@180M mem_mali=32@224M\0"	\
+	"memargs512=mem=96M@0 mem_modem=32M@96M mem=44M@128M "		\
+		"pmem=22M@172M mem=30M@194M mem_mali=32M@224M "		\
+		"pmem_hwb=54M@256M mem=202M@310M\0"			\
 	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
-		"init=init mem=96M@0 mem=34M@128M "			\
-		"pmem=22M@162M pmem_mio=8M@184M pmem_hwb=32M@192M "	\
+		"init=init "						\
 		"board_id=${board_id} "					\
 		"logo.${logo} "					\
 		"startup_graphics=${startup_graphics}\0"		\
@@ -132,8 +136,8 @@
 	"addcons=setenv bootargs ${bootargs} "				\
 		"console=${console}\0"					\
 	"emmcboot=echo Booting from eMMC ...; "				\
-		"run commonargs emmcargs addcons;"			\
-		"emmc_read ${loadaddr} 0x14000000 0x200000; "		\
+		"run commonargs emmcargs addcons memargs;"		\
+		"emmc_read ${loadaddr} 0x14000000 0x300000; "		\
 		"bootm ${loadaddr}\0"					\
 	"cmdfile=mmc init 1;mmc_read_cmd_file;run bootcmd\0"		\
 	"flash=mmc init 1;fatload mmc 1 ${loadaddr} flash.scr;"		\
@@ -150,12 +154,12 @@
 
 #define CONFIG_SYS_LONGHELP			/* undef to save memory     */
 #define CONFIG_SYS_PROMPT	"U8500 $ "	/* Monitor Command Prompt   */
-#define CONFIG_SYS_CBSIZE	256		/* Console I/O Buffer Size  */
+#define CONFIG_SYS_CBSIZE	1024		/* Console I/O Buffer Size  */
 
 /* Print Buffer Size */
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE \
 					+ sizeof(CONFIG_SYS_PROMPT) + 16)
-#define CONFIG_SYS_MAXARGS	16	/* max number of command args */
+#define CONFIG_SYS_MAXARGS	32	/* max number of command args */
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
 
 #undef	CONFIG_SYS_CLKS_IN_HZ		/* everything, incl board info, in Hz */

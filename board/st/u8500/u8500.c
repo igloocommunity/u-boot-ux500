@@ -60,6 +60,12 @@
 
 #define PRCM_TCR			(PRCMU_BASE + 0x1C8)
 
+/*
+ * Memory controller register
+ */
+#define DMC_BASE_ADDR			0x80156000
+#define DMC_CTL_97			(DMC_BASE_ADDR + 0x184)
+
 int board_id;	/* set in board_late_init() */
 
 /* PLLs for clock management registers */
@@ -170,9 +176,32 @@ int board_init(void)
 
 int dram_init(void)
 {
-    gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
-    gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE_1;
-    return 0;
+	uint32_t unused_cols_rows;
+	unsigned int nrows;
+	unsigned int ncols;
+
+	gd->bd->bi_dram[0].start = 0;
+	if (u8500_is_earlydrop()) {
+		gd->bd->bi_dram[0].size = 0x10000000;	/* 256 MiB */
+		return 0;
+	}
+
+	/*
+	 * Assumption: 2 CS active, both CS have same layout.
+	 *             15 rows max, 11 cols max (controller spec).
+	 *             memory chip has 8 banks, I/O width 32 bit.
+	 * The correct way would be to read MR#8: I/O width and density,
+	 * but this requires locking against the PRCMU firmware.
+	 * Simplified approach:
+	 * Read number of unused rows and columns from mem controller.
+	 * size = nCS x 2^(rows+cols) x nbanks x buswidth_bytes
+	 */
+	unused_cols_rows = readl(DMC_CTL_97);
+	nrows = 15 - (unused_cols_rows & 0xff);
+	ncols = 11 - ((unused_cols_rows & 0xff00) >> 8);
+	gd->bd->bi_dram[0].size = 2 * (1 << (nrows + ncols)) * 8 * 4;
+
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_LOGO
@@ -358,6 +387,20 @@ int board_late_init(void)
 #ifdef CONFIG_VIDEO_LOGO
 	dss_init();
 #endif
+	/*
+	 * Create a memargs variable which points uses either the memargs256 or
+	 * memargs512 environment variable, depending on the memory size.
+	 * memargs is used to build the bootargs, memargs256 and memargs512 are
+	 * stored in the environment.
+	 */
+	if (gd->bd->bi_dram[0].size == 0x10000000) {
+		setenv("memargs", "setenv bootargs ${bootargs} ${memargs256}");
+		setenv("mem", "256M");
+	} else {
+		setenv("memargs", "setenv bootargs ${bootargs} ${memargs512}");
+		setenv("mem", "512M");
+	}
+
 	return (0);
 }
 #endif /* BOARD_LATE_INIT */
