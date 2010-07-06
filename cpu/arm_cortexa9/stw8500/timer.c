@@ -23,6 +23,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/hardware.h>
+#include <boottime.h>
 
 /*
  * The MTU device hosts four different counters, with 4 set of
@@ -108,6 +109,11 @@ ulong get_timer(ulong base)
 	return  TICKS_TO_HZ(READ_TIMER()) - base;
 }
 
+u64 get_timer_us(void)
+{
+	return  COUNT_TO_USEC(READ_TIMER());
+}
+
 /* Delay x useconds */
 void udelay(unsigned long usec)
 {
@@ -117,4 +123,5 @@ void udelay(unsigned long usec)
 	end = ini + USEC_TO_COUNT(usec);
 	while ((signed)(end - READ_TIMER()) > 0)
 		;
+	boottime_idle_add(usec);
 }
