@@ -67,6 +67,7 @@
 #define DMC_CTL_97			(DMC_BASE_ADDR + 0x184)
 
 int board_id;	/* set in board_late_init() */
+int errno;
 
 /* PLLs for clock management registers */
 enum {

@@ -82,6 +82,9 @@
 #define CONFIG_MMC		1
 #define CONFIG_GENERIC_MMC	1
 #define CONFIG_DOS_PARTITION	1
+#define CONFIG_ROCKBOX_FAT	1
+#define CONFIG_U_BOOT		1 /* needed by Rockbox code */
+#define CONFIG_SUPPORT_VFAT	1 /* Rockbox */
 
 /*
  * Commands
@@ -98,6 +101,7 @@
 #define CONFIG_CMD_LOADB
 #define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
+#define CONFIG_CMD_TREE_FAT	/* Rockbox */
 #define CONFIG_CMD_EXT2
 #define CONFIG_CMD_EMMC
 #define CONFIG_CMD_SOURCE
