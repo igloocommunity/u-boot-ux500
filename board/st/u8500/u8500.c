@@ -197,8 +197,8 @@ int dram_init(void)
 	 * size = nCS x 2^(rows+cols) x nbanks x buswidth_bytes
 	 */
 	unused_cols_rows = readl(DMC_CTL_97);
-	nrows = 15 - (unused_cols_rows & 0xff);
-	ncols = 11 - ((unused_cols_rows & 0xff00) >> 8);
+	nrows = 15 - (unused_cols_rows & 0x07);
+	ncols = 11 - ((unused_cols_rows & 0x0700) >> 8);
 	gd->bd->bi_dram[0].size = 2 * (1 << (nrows + ncols)) * 8 * 4;
 
 	return 0;
