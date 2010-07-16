@@ -313,8 +313,16 @@
 /*
  * Audio
  * Bank : 0x0D
- * Not a part of this file. Should be part of Audio codec driver
+ * Should be part of Audio codec driver
  */
+#define AB8500_AUDIO_POWER_UP		0x0D00
+#define AB8500_AUDIO_ANA_CONF4		0x0D08
+#define AB8500_AUDIO_DA_PATH_CONF	0x0D09
+#define AB8500_AUDIO_PWM_GEN_CONF1	0x0D0F
+#define AB8500_AUDIO_PWM_GEN_CONF2	0x0D10
+#define AB8500_AUDIO_PWM_GEN_CONF3	0x0D11
+#define AB8500_AUDIO_PWM_GEN_CONF4	0x0D12
+#define AB8500_AUDIO_PWM_GEN_CONF5	0x0D13
 
 /*
  * Interrupt register offsets
