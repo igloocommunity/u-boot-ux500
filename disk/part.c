@@ -229,19 +229,19 @@ void dev_print (block_dev_desc_t *dev_desc)
     defined(CONFIG_AMIGA_PARTITION) || \
     defined(CONFIG_EFI_PARTITION)
 
-void init_part (block_dev_desc_t * dev_desc)
+int init_part (block_dev_desc_t * dev_desc)
 {
 #ifdef CONFIG_ISO_PARTITION
 	if (test_part_iso(dev_desc) == 0) {
 		dev_desc->part_type = PART_TYPE_ISO;
-		return;
+		return 0;
 	}
 #endif
 
 #ifdef CONFIG_MAC_PARTITION
 	if (test_part_mac(dev_desc) == 0) {
 		dev_desc->part_type = PART_TYPE_MAC;
-		return;
+		return 0;
 	}
 #endif
 
@@ -249,23 +249,24 @@ void init_part (block_dev_desc_t * dev_desc)
 #ifdef CONFIG_EFI_PARTITION
 	if (test_part_efi(dev_desc) == 0) {
 		dev_desc->part_type = PART_TYPE_EFI;
-		return;
+		return 0;
 	}
 #endif
 
 #ifdef CONFIG_DOS_PARTITION
 	if (test_part_dos(dev_desc) == 0) {
 		dev_desc->part_type = PART_TYPE_DOS;
-		return;
+		return 0;
 	}
 #endif
 
 #ifdef CONFIG_AMIGA_PARTITION
 	if (test_part_amiga(dev_desc) == 0) {
 	    dev_desc->part_type = PART_TYPE_AMIGA;
-	    return;
+	    return 0;
 	}
 #endif
+	return -1;
 }
 
 
@@ -346,6 +347,12 @@ static void print_part_header (const char *type, block_dev_desc_t * dev_desc)
 	case IF_TYPE_DOC:
 		puts ("DOC");
 		break;
+	case IF_TYPE_MMC:
+		puts ("MMC");
+		break;
+	case IF_TYPE_SD:
+		puts ("SD");
+		break;
 	default:
 		puts ("UNKNOWN");
 		break;
@@ -407,4 +414,19 @@ void print_part (block_dev_desc_t * dev_desc)
 # error nor CONFIG_EFI_PARTITION configured!
 #endif
 
+#else
+/* Stub routines to allows code build */
+int init_part (block_dev_desc_t * dev_desc)
+{
+	return -1;
+}
+int get_partition_info (block_dev_desc_t *dev_desc, int part
+					, disk_partition_t *info)
+{
+	return -1;
+}
+void print_part (block_dev_desc_t * dev_desc)
+{
+	return;
+}
 #endif

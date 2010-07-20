@@ -13,7 +13,7 @@ extern char * strpbrk(const char *,const char *);
 extern char * strtok(char *,const char *);
 extern char * strsep(char **,const char *);
 extern __kernel_size_t strspn(const char *,const char *);
-
+extern char * strtok_r(char *ptr, const char *sep, char **end);
 
 /*
  * Include machine specific inline routines

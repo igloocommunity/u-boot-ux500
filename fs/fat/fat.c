@@ -5,6 +5,8 @@
  *
  * 2002-07-28 - rjones@nexus-tech.net - ported to ppcboot v1.1.6
  * 2003-03-10 - kharris@nexus-tech.net - ported to uboot
+ * 2006-01-18 - Keith Outwater (outwater4@comcast.net) - add support for
+ *              rockbox FAT (www.rockbox.org) filesystem driver.
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -31,6 +33,24 @@
 #include <asm/byteorder.h>
 #include <part.h>
 
+/*- exported routines ------------------------------------*/
+int  fat_register_device(block_dev_desc_t *dev_desc, int part_no);
+int  file_fat_detectfs(void);
+int  disk_read (__u32 startblock, __u32 getsize, __u8 * bufptr);
+#if defined(CONFIG_ROCKBOX_FAT)
+int  disk_write (__u32 startblock, __u32 putsize, __u8 * bufptr);
+#else
+long do_fat_read (const char *filename, void *buffer, unsigned long maxsize, int dols);
+int  file_fat_ls(const char *dir);
+long file_fat_read(const char *filename, void *buffer, unsigned long maxsize);
+#endif
+
+/*- imported routines ------------------------------------*/
+#if defined(CONFIG_ROCKBOX_FAT)
+extern int rockbox_fat_mount(long startsector);
+#endif
+
+#if !defined(CONFIG_ROCKBOX_FAT)
 /*
  * Convert a string to lowercase.
  */
@@ -42,17 +62,45 @@ downcase(char *str)
 		str++;
 	}
 }
+#endif /* !defined CONFIG_ROCKBOX_FAT */
 
+#if defined(CONFIG_ROCKBOX_FAT)
+cur_block_dev_t cur_block_dev = {
+ 	cur_dev : NULL,
+ 	part_offset : 0,
+ 	cur_part : 1
+ };
+#else
 static  block_dev_desc_t *cur_dev = NULL;
 static unsigned long part_offset = 0;
 static int cur_part = 1;
+#endif
 
 #define DOS_PART_TBL_OFFSET	0x1be
 #define DOS_PART_MAGIC_OFFSET	0x1fe
 #define DOS_FS_TYPE_OFFSET	0x36
+#define DOS_FS_TYPE_OFFSET2	0x52
 
 int disk_read (__u32 startblock, __u32 getsize, __u8 * bufptr)
 {
+#if defined(CONFIG_ROCKBOX_FAT)
+	int rc;
+ 	if (cur_block_dev.cur_dev == NULL) {
+ 		FAT_DPRINT("Error: %s:%d:%s: cur_dev is NULL\n",
+ 				   __FILE__, __LINE__, __FUNCTION__);
+ 		return -1;
+ 	}
+ 	if (cur_block_dev.cur_dev->block_read) {
+ 		/*
+ 		 * The block read functions return zero on error, but the FAT 
+ 		 * filesystem drivers expect a negative return on error.
+ 		 */
+ 		rc = (int)cur_block_dev.cur_dev->block_read(cur_block_dev.cur_dev->dev, 
+ 		                                            startblock, getsize, (unsigned long *)bufptr);
+ 		if (rc == 0) return -1;
+ 		else         return rc;
+	}
+#else
 	startblock += part_offset;
 	if (cur_dev == NULL)
 		return -1;
@@ -60,9 +108,32 @@ int disk_read (__u32 startblock, __u32 getsize, __u8 * bufptr)
 		return cur_dev->block_read (cur_dev->dev
 			, startblock, getsize, (unsigned long *)bufptr);
 	}
+#endif
 	return -1;
 }
 
+#if defined(CONFIG_ROCKBOX_FAT)
+int disk_write (__u32 startblock, __u32 putsize, __u8 * bufptr)
+{
+	int rc;
+
+	if (cur_block_dev.cur_dev == NULL) {
+		FAT_DPRINT("Error: %s:%d:%s: cur_dev is NULL\n",
+				   __FILE__, __LINE__, __FUNCTION__);
+		return -1;
+	}
+	if (cur_block_dev.cur_dev->block_write) {
+		rc = (int)cur_block_dev.cur_dev->block_write(cur_block_dev.cur_dev->dev,
+													 startblock, putsize,
+													 (unsigned long *)bufptr);
+		if (rc == 0)
+			return -1;
+		else
+			return rc;
+	}
+	return -1;
+}
+#endif /* #if defined(CONFIG_ROCKBOX_FAT) */
 
 int
 fat_register_device(block_dev_desc_t *dev_desc, int part_no)
@@ -72,7 +143,11 @@ fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 
 	if (!dev_desc->block_read)
 		return -1;
+#if defined(CONFIG_ROCKBOX_FAT)
+ 	cur_block_dev.cur_dev=dev_desc;
+#else
 	cur_dev = dev_desc;
+#endif
 	/* check if we have a MBR (on floppies we have only a PBR) */
 	if (dev_desc->block_read (dev_desc->dev, 0, 1, (ulong *) buffer) != 1) {
 		printf ("** Can't read from device %d **\n", dev_desc->dev);
@@ -92,12 +167,25 @@ fat_register_device(block_dev_desc_t *dev_desc, int part_no)
      defined(CONFIG_SYSTEMACE) )
 	/* First we assume, there is a MBR */
 	if (!get_partition_info (dev_desc, part_no, &info)) {
+#if defined(CONFIG_ROCKBOX_FAT)
+		cur_block_dev.cur_part = part_no;
+		cur_block_dev.part_offset=info.start;
+#else
 		part_offset = info.start;
 		cur_part = part_no;
-	} else if (!strncmp((char *)&buffer[DOS_FS_TYPE_OFFSET], "FAT", 3)) {
+#endif
+	} else if (   (!strncmp((char *)&buffer[DOS_FS_TYPE_OFFSET], "FAT", 3))  /* FAT16 */ 
+	           || (!strncmp((char *)&buffer[DOS_FS_TYPE_OFFSET2], "FAT", 3)) /* FAT32 */
+	          ) 
+	{
 		/* ok, we assume we are on a PBR only */
+#if defined(CONFIG_ROCKBOX_FAT)
+		cur_block_dev.cur_part = 1;
+		cur_block_dev.part_offset = 0;
+#else
 		cur_part = 1;
 		part_offset = 0;
+#endif
 	} else {
 		printf ("** Partition %d not valid on device %d **\n",
 				part_no, dev_desc->dev);
@@ -107,23 +195,42 @@ fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 #else
 	if (!strncmp((char *)&buffer[DOS_FS_TYPE_OFFSET],"FAT",3)) {
 		/* ok, we assume we are on a PBR only */
+#if defined(CONFIG_ROCKBOX_FAT)
+		cur_block_dev.cur_part = 1;
+		cur_block_dev.part_offset = 0;
+		info.start = cur_block_dev.part_offset;
+#else
 		cur_part = 1;
 		part_offset = 0;
 		info.start = part_offset;
+#endif
 	} else {
 		/* FIXME we need to determine the start block of the
 		 * partition where the DOS FS resides. This can be done
 		 * by using the get_partition_info routine. For this
 		 * purpose the libpart must be included.
 		 */
+#if defined(CONFIG_ROCKBOX_FAT)
+		cur_block_dev.cur_part = 1;
+		cur_block_dev.part_offset = 32;
+#else
 		part_offset = 32;
 		cur_part = 1;
+#endif
+	}
+#endif
+
+#if defined(CONFIG_ROCKBOX_FAT)
+	if (rockbox_fat_mount((long)cur_block_dev.part_offset) < 0) {
+		printf("Error: Failed to mount filesystem\n");
+		return -1;
 	}
 #endif
 	return 0;
 }
 
 
+#if !defined(CONFIG_ROCKBOX_FAT)
 /*
  * Get the first occurence of a directory delimiter ('/' or '\') in a string.
  * Return index into string if found, -1 otherwise.
@@ -641,7 +748,7 @@ static dir_entry *get_dentfromdir (fsdata * mydata, int startsect,
 
     return NULL;
 }
-
+#endif /* #if !defined(CONFIG_ROCKBOX_FAT) */
 
 /*
  * Read boot sector and volume info from a FAT filesystem
@@ -698,10 +805,11 @@ read_bootsectandvi(boot_sector *bs, volume_info *volinfo, int *fatsize)
 		}
 	}
 
-	FAT_DPRINT("Error: broken fs_type sign\n");
+	FAT_DPRINT("Error: broken fs_type signature\n");
 	return -1;
 }
 
+#if !defined(CONFIG_ROCKBOX_FAT)
 __attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 do_fat_read_block[MAX_CLUSTSIZE];
 long
@@ -943,7 +1051,7 @@ do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 
     return ret;
 }
-
+#endif /* #if !defined(CONFIG_ROCKBOX_FAT) */
 
 int
 file_fat_detectfs(void)
@@ -953,7 +1061,11 @@ file_fat_detectfs(void)
 	int		fatsize;
 	char	vol_label[12];
 
+#if defined(CONFIG_ROCKBOX_FAT)
+	if(cur_block_dev.cur_dev==NULL) {
+#else
 	if(cur_dev==NULL) {
+#endif
 		printf("No current device\n");
 		return 1;
 	}
@@ -964,7 +1076,11 @@ file_fat_detectfs(void)
     defined(CONFIG_CMD_USB) || \
     defined(CONFIG_MMC)
 	printf("Interface:  ");
+#if defined(CONFIG_ROCKBOX_FAT)
+	switch(cur_block_dev.cur_dev->if_type) {
+#else
 	switch(cur_dev->if_type) {
+#endif
 		case IF_TYPE_IDE :	printf("IDE"); break;
 		case IF_TYPE_SATA :	printf("SATA"); break;
 		case IF_TYPE_SCSI :	printf("SCSI"); break;
@@ -972,10 +1088,16 @@ file_fat_detectfs(void)
 		case IF_TYPE_USB :	printf("USB"); break;
 		case IF_TYPE_DOC :	printf("DOC"); break;
 		case IF_TYPE_MMC :	printf("MMC"); break;
+		case IF_TYPE_SD :	printf("SD"); break;
 		default :		printf("Unknown");
 	}
+#if defined(CONFIG_ROCKBOX_FAT)
+	printf("\n  Device %d: ",cur_block_dev.cur_dev->dev);
+	dev_print(cur_block_dev.cur_dev);
+#else
 	printf("\n  Device %d: ",cur_dev->dev);
 	dev_print(cur_dev);
+#endif
 #endif
 	if(read_bootsectandvi(&bs, &volinfo, &fatsize)) {
 		printf("\nNo valid FAT fs found\n");
@@ -984,12 +1106,18 @@ file_fat_detectfs(void)
 	memcpy (vol_label, volinfo.volume_label, 11);
 	vol_label[11] = '\0';
 	volinfo.fs_type[5]='\0';
+#if defined(CONFIG_ROCKBOX_FAT)
+	printf("Partition %d: Filesystem: %s \"%s\"\n"
+			,cur_block_dev.cur_part,volinfo.fs_type,vol_label);
+#else
 	printf("Partition %d: Filesystem: %s \"%s\"\n"
 			,cur_part,volinfo.fs_type,vol_label);
+#endif
 	return 0;
 }
 
 
+#if !defined(CONFIG_ROCKBOX_FAT)
 int
 file_fat_ls(const char *dir)
 {
@@ -1003,3 +1131,4 @@ file_fat_read(const char *filename, void *buffer, unsigned long maxsize)
 	printf("reading %s\n",filename);
 	return do_fat_read(filename, buffer, maxsize, LS_NO);
 }
+#endif /* #if !defined(CONFIG_ROCKBOX_FAT) */

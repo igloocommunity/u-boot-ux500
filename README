@@ -737,6 +737,42 @@ The following options need to be configured:
 		Note that if the RTC uses I2C, then the I2C interface
 		must also be configured. See I2C Support, below.
 
+ - Rockbox FAT Filesystem Driver:
+		U-Boot includes a port of the FAT filesystem driver from the
+		Rockbox project (www.rockbox.org). To configure U-Boot to
+		use thus driver (and to NOT use the default FAT12/16/32
+		read-only driver), define CONFIG_ROCKBOX_FAT along with
+		CONFIG_CMD_FAT.
+
+		Note that the rockbox FAT driver does not support FAT12, but
+		it does support FAT16 and FAT32 (with long file names) and you
+		get FAT read and write functionality too.
+
+		CFG_ROCKBOX_FAT_MAX_OPEN_FILES (optional) - define this to
+		specify the maximum number of files that may be open at one
+		time. The default is 1. This should be sufficient unless you
+		are planning to use the posix-like interface to a FAT
+		filesystem and need more than one file open at a time.
+
+		CFG_ROCKBOX_FAT_MAX_OPEN_DIRS (optional) - define this to
+		specify the maximum number of simultaneously open directories.
+		The default is 8.
+
+		CFG_ROCKBOX_FAT_MAX_SECS_PER_XFER (optional) - define this
+		parameter in order to allow the filesystem driver to request
+		transfer (read or write) of more than 256 sectors per transfer
+		request. If you override the default, MAKE SURE that your
+		disk driver can handle more than 256 sectors per transfer
+		request.
+
+		The rockbox driver expects to set the 'errno' variable, so
+		your BSP needs to declare it as follows:
+
+			int errno;
+
+		If you want to include strerror() support, define
+		CONFIG_STRERROR.
+
 - GPIO Support:
 		CONFIG_PCA953X		- use NXP's PCA953X series I2C GPIO
 		CONFIG_PCA953X_INFO	- enable pca953x info command

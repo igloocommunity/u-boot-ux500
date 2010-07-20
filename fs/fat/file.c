@@ -5,6 +5,7 @@
  *
  * 2002-07-28 - rjones@nexus-tech.net - ported to ppcboot v1.1.6
  * 2003-03-10 - kharris@nexus-tech.net - ported to uboot
+ * 2006-01-18 - Keith Outwater (outwater@comcast.net) - added write support
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -32,10 +33,22 @@
 #include <linux/stat.h>
 #include <linux/time.h>
 
+#include "rockbox_debug.h"
+
+#ifdef CONFIG_ROCKBOX_FAT
+extern cur_block_dev_t cur_block_dev;
+#endif
+
+#if !defined(CONFIG_ROCKBOX_FAT)
 /* Supported filesystems */
 static const struct filesystem filesystems[] = {
-	{ file_fat_detectfs,  file_fat_ls,  file_fat_read,  "FAT" },
+	{ detect:	file_fat_detectfs,
+	  ls:		file_fat_ls,
+	  read:		file_fat_read,
+	  "FAT"
+	},
 };
+
 #define NUM_FILESYS	(sizeof(filesystems)/sizeof(struct filesystem))
 
 /* The filesystem which was last detected */
@@ -138,9 +151,9 @@ file_cd(const char *path)
 		pathcpy(tmpstr+1, path);
 	}
 
+	fat_dprintf("New CWD is '%s'\n", file_cwd);
 	return 0;
 }
-
 
 int
 file_detectfs(void)
@@ -202,3 +215,4 @@ file_read(const char *filename, void *buffer, unsigned long maxsize)
 
 	return filesystems[current_filesystem].read(arg, buffer, maxsize);
 }
+#endif /* #if !defined(CONFIG_ROCKBOX_FAT) */

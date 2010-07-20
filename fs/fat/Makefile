@@ -24,7 +24,11 @@ include $(TOPDIR)/config.mk
 LIB	= $(obj)libfat.a
 
 AOBJS	=
+
+COBJS-y := 
 COBJS-$(CONFIG_CMD_FAT)	:= fat.o file.o
+COBJS-$(CONFIG_ROCKBOX_FAT) += rockbox_fat.o
+COBJS-$(CONFIG_ROCKBOX_FAT) += rockbox_dir.o rockbox_file.o rockbox_wrapper.o
 
 SRCS	:= $(AOBJS:.o=.S) $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(AOBJS) $(COBJS-y))

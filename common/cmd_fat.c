@@ -2,6 +2,10 @@
  * (C) Copyright 2002
  * Richard Jones, rjones@nexus-tech.net
  *
+ * Keith Outwater (outwater4@comcast.net) - add additional
+ *   FAT commands for use with rockbox (www.rockbox.org) FAT
+ *   filesystem driver.
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -45,7 +49,8 @@ int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	char *ep;
 
 	if (argc < 5) {
-		printf ("usage: fatload <interface> <dev[:part]> <addr> <filename> [bytes]\n");
+		printf ("usage: fatload <interface> <dev[:part]> <addr> "
+				"<filename> [bytes]\n");
 		return 1;
 	}
 	dev = (int)simple_strtoul (argv[2], &ep, 16);
@@ -62,7 +67,8 @@ int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		part = (int)simple_strtoul(++ep, NULL, 16);
 	}
 	if (fat_register_device(dev_desc,part)!=0) {
-		printf ("\n** Unable to use %s %d:%d for fatload **\n",argv[1],dev,part);
+		printf ("\n** Unable to use %s %d:%d for fatload **\n",
+				argv[1],dev,part);
 		return 1;
 	}
 	offset = simple_strtoul (argv[3], NULL, 16);
@@ -73,26 +79,511 @@ int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	size = file_fat_read (argv[4], (unsigned char *) offset, count);
 
 	if(size==-1) {
-		printf("\n** Unable to read \"%s\" from %s %d:%d **\n",argv[4],argv[1],dev,part);
+		printf("\n** Unable to read \"%s\" from %s %d:%d **\n",
+			   argv[4],argv[1],dev,part);
 		return 1;
 	}
 
-	printf ("\n%ld bytes read\n", size);
+	printf ("\n%ld bytes read\n", (ulong)size);
 
-	sprintf(buf, "%lX", size);
+	sprintf(buf, "0x%lX", size);
 	setenv("filesize", buf);
 
 	return 0;
 }
 
 
+#ifndef CONFIG_CMD_TREE_FAT
+#ifdef CONFIG_ROCKBOX_FAT
 U_BOOT_CMD(
 	fatload,	6,	0,	do_fat_fsload,
 	"load binary file from a dos filesystem",
-	"<interface> <dev[:part]>  <addr> <filename> [bytes]\n"
+	"<interface> <dev[:part]> <addr> <filename> [bytes]\n"
 	"    - load binary file 'filename' from 'dev' on 'interface'\n"
 	"      to address 'addr' from dos filesystem"
 );
+#else
+U_BOOT_CMD(
+	fatload,	6,	0,	do_fat_fsload,
+	"load binary file from a dos FAT16/32 filesystem\n",
+	"<interface> <dev[:part]> <addr> <filename> [bytes]\n"
+	"    - load binary file 'filename' from 'dev' on 'interface'\n"
+	"      to address 'addr' from dos FAT16/32 filesystem\n"
+);
+#endif
+#endif /* #ifndef CONFIG_CMD_TREE_FAT */
+
+#ifdef CONFIG_ROCKBOX_FAT
+int
+do_fat_fswrite (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	long size;
+	unsigned long offset;
+	unsigned long count;
+	char buf[12];
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+
+	if (argc < 6) {
+		printf ("usage: fatwrite <interface> <dev[:part]> "
+				"<addr> <filename> <bytes>\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatwrite **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	offset = simple_strtoul (argv[3], NULL, 16);
+	count = simple_strtoul (argv[5], NULL, 16);
+	size = file_fat_write(argv[4], (unsigned char *)offset, count);
+
+	if (size <= 0) {
+		printf("\n** Unable to write\"%s\" to %s %d:%d **\n",
+			   argv[4],argv[1],dev,part);
+		return 1;
+	}
+
+	printf ("\n%ld bytes written\n", size);
+	sprintf(buf, "0x%lX", size);
+	setenv("filesize", buf);
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatwrite,	6,	0,	do_fat_fswrite,
+	"store a binary file to a dos filesystem\n",
+	"<interface> <dev[:part]> <addr> <filename> <bytes>\n"
+	"    - store binary file 'filename' to 'dev' on 'interface'\n"
+	"      containing a dos filesystem from address 'addr'\n"
+	"      with length 'bytes'\n"
+);
+#endif
+
+int
+do_fat_fsrm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	char buf[256];
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+
+	if (argc < 4) {
+		printf ("usage: fatrm <interface> <dev[:part]> <filename>\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatrm **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	if (file_fat_rm(argv[3]) < 0) {
+		printf("\n** Unable to remove \"%s\" **\n", argv[3]);
+		return 1;
+	}
+
+	strncpy(buf, argv[3], sizeof(buf));
+	setenv("rm_filename", buf);
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatrm,	4,	0,	do_fat_fsrm,
+	"remove a file in a FAT16/32 filesystem\n",
+	"<interface> <dev[:part]> <filename>\n"
+	"    - remove 'filename' in the FAT16/32 filesytem\n"
+	"      on 'dev' on 'interface'\n"
+);
+#endif
+
+int
+do_fat_fsmkdir (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	char buf[256];
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+
+	if (argc < 4) {
+		printf ("usage: fatmkdir <interface> <dev[:part]> <dirname>\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatmkdir **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	if (file_fat_mkdir(argv[3]) < 0) {
+		printf("\n** Unable to make dir \"%s\" **\n", argv[3]);
+		return 1;
+	}
+
+	strncpy(buf, argv[3], sizeof(buf));
+	setenv("mkdir_dirname", buf);
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatmkdir,	4,	0,	do_fat_fsmkdir,
+	"make a directory in a FAT16/32 filesystem\n",
+	"<interface> <dev[:part]> <dirname>\n"
+	"    - make 'dirname' in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+);
+#endif
+
+int
+do_fat_fsrmdir (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	char buf[256];
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+
+	if (argc < 4) {
+		printf ("usage: fatrmdir <interface> <dev[:part]> <dirname>\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatrmdir **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	if (file_fat_rmdir(argv[3]) < 0) {
+		printf("\n** Unable to remove dir \"%s\" **\n", argv[3]);
+		return 1;
+	}
+
+	strncpy(buf, argv[3], sizeof(buf));
+	setenv("rm_dirname", buf);
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatrmdir,	4,	0,	do_fat_fsrmdir,
+	"remove an empty directory in a FAT16/32 filesystem\n",
+	"<interface> <dev[:part]> <dirname>\n"
+	"    - remove 'dirname' in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+);
+#endif
+
+int
+do_fat_fscd (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	char buf[256];
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+
+	if (argc < 4) {
+		printf ("usage: fatcd <interface> <dev[:part]> <dirname>\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatcd **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	if (file_fat_cd(argv[3]) < 0) {
+		printf("\n** Unable to change to dir \"%s\" **\n", argv[3]);
+		return 1;
+	}
+
+	strncpy(buf, argv[3], sizeof(buf));
+	setenv("cwd", buf);
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatcd,	4,	0,	do_fat_fscd,
+	"change to the specified dir in a FAT16/32 filesystem\n",
+	"<interface> <dev[:part]> <dirname>\n"
+	"    - change to 'dirname' in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+);
+#endif
+
+int
+do_fat_fspwd (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+
+	if (argc < 3) {
+		printf ("usage: fatpwd <interface> <dev[:part]>\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatpwd **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	file_fat_pwd();
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatpwd,	3,	0,	do_fat_fspwd,
+	"print the current working dir in a FAT16/32 filesystem\n",
+	"<interface> <dev[:part]>\n"
+	"    - print the CWD in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+);
+#endif
+
+int
+do_fat_fsmv (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	char buf[256];
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+
+	if (argc < 5) {
+		printf ("usage: fatmv <interface> <dev[:part]> <oldname> <newname>\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatmv **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	if (file_fat_mv(argv[3], argv[4]) < 0) {
+		printf("\n** Unable to change \"%s\" to \"%s\" **\n",
+			   argv[3], argv[4]);
+		return 1;
+	}
+
+	strncpy(buf, argv[3], sizeof(buf));
+	setenv("filename", buf);
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatmv,	5,	0,	do_fat_fsmv,
+	"move a file in a FAT16/32 filesystem\n",
+	"<interface> <dev[:part]> <oldname> <newname>\n"
+	"    - change <oldname> to <newname> in the FAT16/32 filesytem\n"
+	"      on 'dev' on 'interface'\n"
+);
+#endif
+
+int
+do_fat_free (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	block_dev_desc_t *dev_desc=NULL;
+	int dev=0;
+	int part=1;
+	char *ep;
+	unsigned int size;
+
+	if (argc < 3) {
+		printf ("usage: fatfree <interface> <dev[:part]> [<size>]\n");
+		return 1;
+	}
+
+	dev = (int)simple_strtoul (argv[2], &ep, 16);
+	dev_desc=get_dev(argv[1],dev);
+	if (dev_desc==NULL) {
+		puts ("\n** Invalid device **\n");
+		return 1;
+	}
+
+	if (*ep) {
+		if (*ep != ':') {
+			puts ("\n** Invalid device, use `dev[:part]' **\n");
+			return 1;
+		}
+		part = (int)simple_strtoul(++ep, NULL, 16);
+	}
+
+	if (fat_register_device(dev_desc,part)!=0) {
+		printf ("\n** Unable to use %s %d:%d for fatmv **\n",
+				argv[1],dev,part);
+		return 1;
+	}
+
+	if(argc>=4) {
+		size = simple_strtoul(argv[3], NULL, 10);
+		printf("Scanning FAT partition for ");
+		if      (size>0x00100000) printf("%d.%02dMB", (int)(size>>20), (int)(size&0x000FFFFF)>>10);
+		else if (size>0x00000400) printf("%d.%02dkB", (int)(size>>10), (int)(size&0x000003FF));
+		else                      printf("%d Byte", (int)size);
+		printf(" of free space.\n");
+		if (rockbox_fat_free(size>>10)) {
+			printf("Enougth free space found.\n");
+			return 0;
+		} else {
+			printf("Not enougth free space found in partition.\n");
+			return 1;
+		}
+	}
+	{	unsigned long size;
+		printf("Scanning full FAT partition for free clusters...\n");
+		size = rockbox_fat_size();
+		printf("FAT filesystem:  total size = ");
+		if      (size>=0x00100000) printf("%d.%02dGB", (int)(size>>20), (int)(size&0x000FFFFF)>>10);
+		else if (size>=0x00000400) printf("%d.%02dMB", (int)(size>>10), (int)(size&0x000003FF));
+		else                       printf("%dkB", (int)size);
+		printf(" /  free size = ");
+		size = rockbox_fat_free(0);
+		if      (size>=0x00100000) printf("%d.%02dGB", (int)(size>>20), (int)(size&0x000FFFFF)>>10);
+		else if (size>=0x00000400) printf("%d.%02dMB", (int)(size>>10), (int)(size&0x000003FF));
+		else                       printf("%dkB", (int)size);
+		putc('\n');
+	}
+	return 0;
+}
+
+#ifndef CONFIG_CMD_TREE_FAT
+U_BOOT_CMD(
+	fatfree,	4,	0,	do_fat_free,
+	"print free space\n",
+	"<interface> <dev[:part]> [size]\n"
+	"    - print free sapce available in filesystem.\n"
+	"      If <size> not specified, full partition is scanned.\n"
+	"      If <size> is specified, return true if enougth free space found.\n"
+);
+#endif
+
+
+#endif /* #ifdef CONFIG_ROCKBOX_FAT */
 
 int do_fat_ls (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
@@ -121,7 +612,8 @@ int do_fat_ls (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		part = (int)simple_strtoul(++ep, NULL, 16);
 	}
 	if (fat_register_device(dev_desc,part)!=0) {
-		printf ("\n** Unable to use %s %d:%d for fatls **\n",argv[1],dev,part);
+		printf ("\n** Unable to use %s %d:%d for fatls **\n",
+			argv[1],dev,part);
 		return 1;
 	}
 	if (argc == 4)
@@ -134,12 +626,14 @@ int do_fat_ls (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	return (ret);
 }
 
+#ifndef CONFIG_CMD_TREE_FAT
 U_BOOT_CMD(
 	fatls,	4,	1,	do_fat_ls,
 	"list files in a directory (default /)",
 	"<interface> <dev[:part]> [directory]\n"
 	"    - list files from 'dev' on 'interface' in a 'directory'"
 );
+#endif
 
 int do_fat_fsinfo (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
@@ -172,12 +666,14 @@ int do_fat_fsinfo (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	return (file_fat_detectfs ());
 }
 
+#ifndef CONFIG_CMD_TREE_FAT
 U_BOOT_CMD(
 	fatinfo,	3,	1,	do_fat_fsinfo,
 	"print information about filesystem",
 	"<interface> <dev[:part]>\n"
 	"    - print information about filesystem from 'dev' on 'interface'"
 );
+#endif
 
 #ifdef NOT_IMPLEMENTED_YET
 /* find first device whose first partition is a DOS filesystem */
@@ -318,3 +814,85 @@ void hexdump (int cnt, unsigned char *data)
 	}
 }
 #endif	/* NOT_IMPLEMENTED_YET */
+
+
+#ifdef CONFIG_CMD_TREE_FAT
+/* replace all fatXXX commands with 'fat xxx' command.
+ */
+int do_fat(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	int (*fn)(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+	fn = NULL;
+	argc--;
+	argv++;
+
+	if      (!strncmp(argv[0], "load", 5)) fn = do_fat_fsload;
+	else if (!strncmp(argv[0], "ls",   2)) fn = do_fat_ls;
+	else if (!strncmp(argv[0], "info", 5)) fn = do_fat_fsinfo;
+#ifdef CONFIG_ROCKBOX_FAT
+	else if (!strncmp(argv[0], "write", 6)) fn = do_fat_fswrite;
+	else if (!strncmp(argv[0], "rm",    3)) fn = do_fat_fsrm;
+	else if (!strncmp(argv[0], "mkdir", 6)) fn = do_fat_fsmkdir;
+	else if (!strncmp(argv[0], "rmdir", 6)) fn = do_fat_fsrmdir;
+	else if (!strncmp(argv[0], "cd",    3)) fn = do_fat_fscd;
+	else if (!strncmp(argv[0], "pwd",   4)) fn = do_fat_fspwd;
+	else if (!strncmp(argv[0], "mv",    3)) fn = do_fat_fsmv;
+	else if (!strncmp(argv[0], "free",  5)) fn = do_fat_free;
+#endif
+	if (fn) {
+		if(fn(cmdtp, flag, argc, argv) == 0) return 0;
+		return 1;
+	}
+	printf("unknown 'fat' command, check 'help fat'\n");
+	return 1;
+}
+
+U_BOOT_CMD(
+	fat, 7, 0, do_fat,
+	"some fat support commands\n",
+	"\n"
+	"fat load <interface> <dev[:part]> <addr> <filename> [bytes]\n"
+	"    - load binary file 'filename' from 'dev' on 'interface'\n"
+	"      to address 'addr' from dos filesystem\n"
+	"\n"
+	"fat ls   <interface> <dev[:part]> [directory]\n"
+	"    - list files from 'dev' on 'interface' in a 'directory'\n"
+	"\n"
+	"fat info <interface> <dev[:part]>\n"
+	"    - print information about filesystem from 'dev' on 'interface'\n"
+	"\n"
+#ifdef CONFIG_ROCKBOX_FAT
+	"fat write <interface> <dev[:part]> <addr> <filename> <bytes>\n"
+	"    - store binary file 'filename' to 'dev' on 'interface'\n"
+	"      containing a dos filesystem from address 'addr'\n"
+	"      with length 'bytes'\n"
+	"\n"
+	"fat rm    <interface> <dev[:part]> <filename>\n"
+	"    - remove 'filename' in the FAT16/32 filesytem\n"
+	"      on 'dev' on 'interface'\n"
+	"\n"
+	"fat mkdir <interface> <dev[:part]> <dirname>\n"
+	"    - make 'dirname' in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+	"\n"
+	"fat rmdir <interface> <dev[:part]> <dirname>\n"
+	"    - remove 'dirname' in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+	"\n"
+	"fat cd    <interface> <dev[:part]> <dirname>\n"
+	"    - change to 'dirname' in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+	"\n"
+	"fat pwd   <interface> <dev[:part]>\n"
+	"    - print the CWD in the FAT16/32 filesytem on 'dev'\n"
+	"      on 'interface'\n"
+	"\n"
+	"fat mv    <interface> <dev[:part]> <oldname> <newname>\n"
+	"    - change <oldname> to <newname> in the FAT16/32 filesytem\n"
+	"      on 'dev' on 'interface'\n"
+	"\n"
+	"fat free  <interface> <dev[:part]> \n"
+	"    - print free sapce available in filesystem (full partition scan)\n"
+#endif
+);
+#endif

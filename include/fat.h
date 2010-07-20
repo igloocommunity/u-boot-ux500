@@ -3,6 +3,8 @@
  *
  * 2002-07-28 - rjones@nexus-tech.net - ported to ppcboot v1.1.6
  * 2003-03-10 - kharris@nexus-tech.net - ported to u-boot
+ * 2006-01-18 - Keith Outwater (outwater@comcast.net) - added write support
+ *    using FAT driver from rockbox project (www.rockbox.org)
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -29,7 +31,9 @@
 
 #include <asm/byteorder.h>
 
+#ifndef CONFIG_SUPPORT_VFAT
 #define CONFIG_SUPPORT_VFAT
+#endif
 
 #define SECTOR_SIZE FS_BLOCK_SIZE
 
@@ -57,12 +61,14 @@
 #define SIGNLEN		8
 
 /* File attributes */
+#ifndef CONFIG_ROCKBOX_FAT /* rockbox redefine these */
 #define ATTR_RO      1
 #define ATTR_HIDDEN  2
 #define ATTR_SYS     4
 #define ATTR_VOLUME  8
 #define ATTR_DIR     16
 #define ATTR_ARCH    32
+#endif
 
 #define ATTR_VFAT     (ATTR_RO | ATTR_HIDDEN | ATTR_SYS | ATTR_VOLUME)
 
@@ -80,7 +86,7 @@
 #define LS_DIR	1
 #define LS_ROOT	2
 
-#ifdef DEBUG
+#if (defined(DEBUG) || defined(FAT_DEBUG))
 #define FAT_DPRINT(args...)	printf(args)
 #else
 #define FAT_DPRINT(args...)
@@ -113,6 +119,14 @@
 			  (FAT2CPU16((dent)->starthi) << 16)))
 #define CHECK_CLUST(x, fatsize) ((x) <= 1 || \
 				(x) >= ((fatsize) != 32 ? 0xfff0 : 0xffffff0))
+
+#ifdef CONFIG_ROCKBOX_FAT
+/*
+ * Remember the current working directory for the four primary partitions.
+ */
+#define	NUM_PARTS_WITH_CWD	4
+#define CWD_LEN			511
+#endif
 
 typedef struct boot_sector {
 	__u8	ignored[3];	/* Bootstrap code */
@@ -192,11 +206,20 @@ typedef struct {
 	int	fatbufnum;	/* Used by get_fatent, init to -1 */
 } fsdata;
 
+/*
+ * This struct encapsulates partiton and device info for the currently active
+ * block device.
+ */
+typedef struct cur_block_dev {
+	block_dev_desc_t *cur_dev;
+	unsigned long part_offset;
+	int cur_part;
+} cur_block_dev_t;
+
 typedef int	(file_detectfs_func)(void);
 typedef int	(file_ls_func)(const char *dir);
 typedef long	(file_read_func)(const char *filename, void *buffer,
 				 unsigned long maxsize);
-
 struct filesystem {
 	file_detectfs_func *detect;
 	file_ls_func	   *ls;
@@ -209,12 +232,28 @@ file_detectfs_func	file_fat_detectfs;
 file_ls_func		file_fat_ls;
 file_read_func		file_fat_read;
 
-/* Currently this doesn't check if the dir exists or is valid... */
+/*Currently this doesn't check if the dir exists or is valid */
 int file_cd(const char *path);
+
 int file_fat_detectfs(void);
 int file_fat_ls(const char *dir);
 long file_fat_read(const char *filename, void *buffer, unsigned long maxsize);
+#ifdef CONFIG_ROCKBOX_FAT
+long file_fat_write(const char *filename, void *buffer, unsigned long filesize);
+int file_fat_rm(const char *filename);
+int file_fat_mkdir(const char *dirname);
+int file_fat_rmdir(const char *dirname);
+int file_fat_pwd(void);
+int file_fat_cd(const char *dirname);
+int file_fat_mv(const char *oldname, const char *newname);
+#endif
 const char *file_getfsname(int idx);
 int fat_register_device(block_dev_desc_t *dev_desc, int part_no);
+
+#ifdef CONFIG_ROCKBOX_FAT
+#ifndef ROCKBOX_FAT_H
+#include <rockbox_fat.h>
+#endif
+#endif
 
 #endif /* _FAT_H_ */

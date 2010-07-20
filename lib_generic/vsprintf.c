@@ -133,6 +133,15 @@ static int skip_atoi(const char **s)
 	return i;
 }
 
+int atoi(const char *s)
+{
+	int i=0;
+
+	while (is_digit(*s))
+		i = i*10 + *(s++) - '0';
+	return i;
+}
+
 /* Decimal conversion is by far the most typical, and is used
  * for /proc and /sys data. This directly impacts e.g. top performance
  * with many processes running. We optimize it for speed

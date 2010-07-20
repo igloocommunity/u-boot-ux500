@@ -78,7 +78,9 @@ static int test_block_type(unsigned char *buffer)
 		return (-1);
 	} /* no DOS Signature at all */
 	if(strncmp((char *)&buffer[DOS_PBR_FSTYPE_OFFSET],"FAT",3)==0)
-		return DOS_PBR; /* is PBR */
+		return DOS_PBR; /* is PBR, FAT16 */
+	if(strncmp((char *)&buffer[DOS_PBR_FSTYPE_OFFSET2],"FAT",3)==0)
+		return DOS_PBR; /* is PBR, FAT32 */
 	return DOS_MBR;	    /* Is MBR */
 }
 
@@ -195,6 +197,11 @@ static int get_partition_info_extended (block_dev_desc_t *dev_desc, int ext_part
 			info->blksz = 512;
 			info->start = ext_part_sector + le32_to_int (pt->start4);
 			info->size  = le32_to_int (pt->size4);
+			/* in case bad device formating... */
+			if(   (info->start > dev_desc->lba)
+			   || (info->size > (dev_desc->lba*dev_desc->blksz))) {
+				return -1;
+			}
 			switch(dev_desc->if_type) {
 				case IF_TYPE_IDE:
 				case IF_TYPE_SATA:
