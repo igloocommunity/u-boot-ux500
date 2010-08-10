@@ -330,19 +330,29 @@ unsigned int addr_vall_arr[] = {
 #ifdef BOARD_LATE_INIT
 #ifdef CONFIG_MMC
 
-#define LDO_VAUX3_MASK		0x3
-#define LDO_VAUX3_ENABLE	0x1
-#define VAUX3_VOLTAGE_2_9V	0xd
-#define VAUX3_V2_VOLTAGE_2_91V	0x7
+#define LDO_VAUX3_ENABLE_MASK		0x3
+#define LDO_VAUX3_ENABLE_VAL		0x1
+#define LDO_VAUX3_SEL_MASK		0xf
+#define LDO_VAUX3_SEL_2V9		0xd
+#define LDO_VAUX3_V2_SEL_MASK		0x7
+#define LDO_VAUX3_V2_SEL_2V91		0x7
 
 static int hrefplus_mmc_power_init(void)
 {
 	int ret;
-	int val;
-	int rev;
+	int voltage_regval;
+	int enable_regval;
+	int ab8500_revision;
 
 	if (!cpu_is_u8500v11() && !cpu_is_u8500v2())
 		return 0;
+
+	/* Get AB8500 revision */
+	ret = ab8500_read(AB8500_MISC, AB8500_REV_REG);
+	if (ret < 0)
+		goto out;
+
+	ab8500_revision = ret;
 
 	/*
 	 * On v1.1 HREF boards (HREF+) and v2 boards, Vaux3 needs to be
@@ -355,43 +365,47 @@ static int hrefplus_mmc_power_init(void)
 	 * Turn off and delay is required to have it work across soft reboots.
 	 */
 
-	ret = ab8500_read(AB8500_MISC, AB8500_REV_REG);
-	if (ret < 0)
-		goto out;
-
-	rev = ret;
-
+	/* Turn off (read-modify-write) */
 	ret = ab8500_read(AB8500_REGU_CTRL2, AB8500_REGU_VRF1VAUX3_REGU_REG);
 	if (ret < 0)
 		goto out;
 
-	val = ret;
+	enable_regval = ret;
 
-	/* Turn off */
 	ret = ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VRF1VAUX3_REGU_REG,
-			   val & ~LDO_VAUX3_MASK);
+		enable_regval & ~LDO_VAUX3_ENABLE_MASK);
 	if (ret < 0)
 		goto out;
 
+	/* Delay */
 	udelay(10 * 1000);
 
-	/* Set the voltage to 2.9V */
-	if (rev >= 0x20)
-		ret = ab8500_write(AB8500_REGU_CTRL2,
-			AB8500_REGU_VRF1VAUX3_SEL_REG, VAUX3_V2_VOLTAGE_2_91V);
-	else
-		ret = ab8500_write(AB8500_REGU_CTRL2,
-			AB8500_REGU_VRF1VAUX3_SEL_REG, VAUX3_VOLTAGE_2_9V);
-
+	/* Set the voltage to 2.91 V or 2.9 V without overriding VRF1 value */
+	ret = ab8500_read(AB8500_REGU_CTRL2, AB8500_REGU_VRF1VAUX3_SEL_REG);
 	if (ret < 0)
 		goto out;
 
-	val = val & ~LDO_VAUX3_MASK;
-	val = val | LDO_VAUX3_ENABLE;
+	voltage_regval = ret;
+
+	if (ab8500_revision < 0x20) {
+		voltage_regval &= ~LDO_VAUX3_SEL_MASK;
+		voltage_regval |= LDO_VAUX3_SEL_2V9;
+	} else {
+		voltage_regval &= ~LDO_VAUX3_V2_SEL_MASK;
+		voltage_regval |= LDO_VAUX3_V2_SEL_2V91;
+	}
+
+	ret = ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VRF1VAUX3_SEL_REG,
+		voltage_regval);
+	if (ret < 0)
+		goto out;
 
 	/* Turn on the supply */
-	ret = ab8500_write(AB8500_REGU_CTRL2,
-			   AB8500_REGU_VRF1VAUX3_REGU_REG, val);
+	enable_regval &= ~LDO_VAUX3_ENABLE_MASK;
+	enable_regval |= LDO_VAUX3_ENABLE_VAL;
+
+	ret = ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VRF1VAUX3_REGU_REG,
+		enable_regval);
 
 out:
 	return ret;
