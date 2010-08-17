@@ -227,7 +227,8 @@ void dev_print (block_dev_desc_t *dev_desc)
     defined(CONFIG_DOS_PARTITION) || \
     defined(CONFIG_ISO_PARTITION) || \
     defined(CONFIG_AMIGA_PARTITION) || \
-    defined(CONFIG_EFI_PARTITION)
+    defined(CONFIG_EFI_PARTITION) || \
+    defined(CONFIG_TOC_PARTITION)
 
 int init_part (block_dev_desc_t * dev_desc)
 {
@@ -249,6 +250,14 @@ int init_part (block_dev_desc_t * dev_desc)
 #ifdef CONFIG_EFI_PARTITION
 	if (test_part_efi(dev_desc) == 0) {
 		dev_desc->part_type = PART_TYPE_EFI;
+		return 0;
+	}
+#endif
+
+/* must also be placed before DOS partition detection */
+#ifdef CONFIG_TOC_PARTITION
+	if (test_part_toc(dev_desc) == 0) {
+		dev_desc->part_type = PART_TYPE_TOC;
 		return 0;
 	}
 #endif
@@ -315,6 +324,15 @@ int get_partition_info (block_dev_desc_t *dev_desc, int part
 	case PART_TYPE_EFI:
 		if (get_partition_info_efi(dev_desc,part,info) == 0) {
 			PRINTF ("## Valid EFI partition found ##\n");
+			return (0);
+		}
+		break;
+#endif
+
+#ifdef CONFIG_TOC_PARTITION
+	case PART_TYPE_TOC:
+		if (get_partition_info_toc(dev_desc,part,info) == 0) {
+			PRINTF ("## Valid TOC partition found ##\n");
 			return (0);
 		}
 		break;
@@ -403,15 +421,24 @@ void print_part (block_dev_desc_t * dev_desc)
 		print_part_efi (dev_desc);
 		return;
 #endif
+
+#ifdef CONFIG_TOC_PARTITION
+	case PART_TYPE_TOC:
+		PRINTF ("## Testing for valid TOC partition ##\n");
+		print_part_header ("TOC", dev_desc);
+		print_part_toc (dev_desc);
+		return;
+#endif
 	}
 	puts ("## Unknown partition table\n");
 }
 
 
-#else	/* neither MAC nor DOS nor ISO nor AMIGA nor EFI partition configured */
+#else	/* neither MAC nor DOS nor ISO nor AMIGA nor EFI
+	   nor TOC partition configured */
 # error neither CONFIG_MAC_PARTITION nor CONFIG_DOS_PARTITION
 # error nor CONFIG_ISO_PARTITION nor CONFIG_AMIGA_PARTITION
-# error nor CONFIG_EFI_PARTITION configured!
+# error nor CONFIG_EFI_PARTITION nor CONFIG_TOC_PARTITION configured!
 #endif
 
 #else
