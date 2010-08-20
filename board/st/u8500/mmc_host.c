@@ -283,8 +283,14 @@ static int do_data_transfer(struct mmc *dev,
 	debug("Request to do data xfer on %s\n", dev->name);
 	debug("do_data_transfer(%u) start\n", data->blocks);
 
-	blksz = convert_from_bytes_to_power_of_two(data->blocksize);
-	data_ctrl |= (blksz << INDEX(SDI_DCTRL_DBLOCKSIZE_MASK));
+	if (cpu_is_u8500v1() || u8500_is_earlydrop()) {
+		blksz = convert_from_bytes_to_power_of_two(data->blocksize);
+		data_ctrl |= (blksz << INDEX(SDI_DCTRL_DBLOCKSIZE_MASK));
+	} else {
+		blksz = data->blocksize;
+		data_ctrl |= (blksz << INDEX(SDI_DCTRL_DBLOCKSIZE_V2_MASK));
+	}
+
 	data_ctrl |= SDI_DCTRL_DTEN;
 
 	debug("SDI_DTIMER <= 0x%08X\n", SDI_DTIMER_DEFAULT);

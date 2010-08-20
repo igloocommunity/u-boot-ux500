@@ -136,22 +136,55 @@ void show_boot_progress(int progress)
 }
 #endif
 
+#define CPUID_DB8500ED  0x410fc090
+#define CPUID_DB8500V1  0x411fc091
+#define CPUID_DB8500V2  0x412fc091
+
+#define ASICID_DB8500V11         0x008500A1
+
+static unsigned int read_cpuid(void)
+{
+	unsigned int val;
+
+	/* Main ID register (MIDR) */
+	asm("mrc        p15, 0, %0, c0, c0, 0"
+	   : "=r" (val)
+	   :
+	   : "cc");
+
+	return val;
+}
+
 static unsigned int read_asicid(void)
 {
-	unsigned int *address = (void *)U8500_BOOTROM_BASE
-				+ U8500_BOOTROM_ASIC_ID_OFFSET;
+	unsigned int *address;
+
+	if (u8500_is_earlydrop() || cpu_is_u8500v1())
+		address = (void *) U8500_ASIC_ID_LOC_ED_V1;
+	else
+		address = (void *) U8500_ASIC_ID_LOC_V2;
+
 	return readl(address);
 }
 
 int u8500_is_earlydrop(void)
 {
-	/* 0x01 for ED, 0xA0 for v1 */
-	return (read_asicid() & 0xff) == 0x01;
+	return read_cpuid() == CPUID_DB8500ED;
+}
+
+int cpu_is_u8500v1(void)
+{
+	return read_cpuid() == CPUID_DB8500V1;
 }
 
 int cpu_is_u8500v11(void)
 {
-	return read_asicid() == 0x008500A1;
+	return read_asicid() == ASICID_DB8500V11;
+}
+
+int cpu_is_u8500v2(void)
+{
+	return read_cpuid() == CPUID_DB8500V2;
 }
 
 /*
@@ -478,10 +511,14 @@ static void init_regs(void)
 		u8500_clock_enable(1, 5, 5);	/* SDI0 */
 		u8500_clock_enable(2, 4, 2);	/* SDI4 */
 
-		if (u8500_is_earlydrop()) {
+		if (u8500_is_earlydrop())
 			u8500_clock_enable(7, 2, -1);	/* MTU0 */
-		} else {
+		else if (cpu_is_u8500v1())
 			u8500_clock_enable(6, 7, -1);	/* MTU0 */
+		else  if (cpu_is_u8500v2())
+			u8500_clock_enable(6, 6, -1);	/* MTU0 */
+
+		if (!u8500_is_earlydrop()) {
 			u8500_clock_enable(3, 4, 4);	/* SDI2 */
 
 			{

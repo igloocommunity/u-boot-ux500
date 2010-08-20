@@ -257,6 +257,7 @@ enum mmc_result {
 #define SDI_DCTRL_DBOOTMODEEN		(0x00002000)	/* (1 << 13) */
 #define SDI_DCTRL_BUSYMODE		(0x00004000)	/* (1 << 14) */
 #define SDI_DCTRL_DDR_MODE		(0x00008000)	/* (1 << 15) */
+#define SDI_DCTRL_DBLOCKSIZE_V2_MASK	(0x7fff0000)
 
 #define SDI_FIFO_BURST_SIZE		(8)
 

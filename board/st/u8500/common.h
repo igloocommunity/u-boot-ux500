@@ -128,6 +128,10 @@ typedef u32 t_logical_address;
 
 /*function prototypes*/
 void gpio_init(void);
+
 int u8500_is_earlydrop(void);
+int cpu_is_u8500v11(void);
+int cpu_is_u8500v1(void);
+int cpu_is_u8500v2(void);
 
 #endif  /* _COMMON_H_ */
