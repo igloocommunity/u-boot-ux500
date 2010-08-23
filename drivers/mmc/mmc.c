@@ -53,6 +53,21 @@ static int mmc_set_blocklen(struct mmc *mmc, uint len)
 	return mmc_send_cmd(mmc, &cmd, NULL);
 }
 
+static int mmc_set_block_count(struct mmc *mmc, uint blkcnt)
+{
+	struct mmc_cmd cmd;
+
+	cmd.cmdidx = MMC_CMD_SET_BLOCK_COUNT;
+	cmd.resp_type = MMC_RSP_R1;
+	if (mmc->card_caps & MMC_MODE_REL_WR)
+		cmd.cmdarg = 0x80000000 | blkcnt;
+	else
+		cmd.cmdarg = blkcnt;
+	cmd.flags = 0;
+
+	return mmc_send_cmd(mmc, &cmd, NULL);
+}
+
 struct mmc *find_mmc_device(int dev_num)
 {
 	struct mmc *m;
@@ -79,6 +94,7 @@ mmc_bwrite_multi(struct mmc *mmc, ulong start, ulong blkcnt, const void *src)
 	ulong blkwritecnt;
 	ulong blkleftcnt = blkcnt;
 	void *src_p = (void *) src;
+	uint max_block_cnt = 0xffff;
 
 	/*
 	 * Each mmc host controller has a size limit in it's register, used
@@ -88,9 +104,14 @@ mmc_bwrite_multi(struct mmc *mmc, ulong start, ulong blkcnt, const void *src)
 	 * instead.
 	 */
 
+	if ((mmc->card_caps & MMC_MODE_REL_WR) &&
+	   !(mmc->wr_rel_param & EXT_CSD_WR_REL_PARAM_EN_REL_WR))
+		max_block_cnt = mmc->rel_wr_sec_c;
+
 	while (blkleftcnt > 0) {
-		if (blkleftcnt > 0xffff)
-			blkwritecnt = 0xffff;
+
+		if (blkleftcnt > max_block_cnt)
+			blkwritecnt = max_block_cnt;
 		else
 			blkwritecnt = blkleftcnt;
 
@@ -98,6 +119,15 @@ mmc_bwrite_multi(struct mmc *mmc, ulong start, ulong blkcnt, const void *src)
 			cmd.cmdarg = start;
 		else
 			cmd.cmdarg = start * mmc->write_bl_len;
+
+		if (mmc->card_caps & MMC_MODE_REL_WR) {
+			err = mmc_set_block_count(mmc, blkwritecnt);
+			if (err) {
+				printf("MMC set block count failed, err=%d\n",
+					err);
+				return 0;
+			}
+		}
 
 		cmd.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK;
 		cmd.resp_type = MMC_RSP_R1;
@@ -114,15 +144,19 @@ mmc_bwrite_multi(struct mmc *mmc, ulong start, ulong blkcnt, const void *src)
 			return 0;
 		}
 
-		cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
-		cmd.cmdarg = 0;
-		cmd.resp_type = MMC_RSP_R1b;
-		cmd.flags = 0;
+		if (!(mmc->card_caps & MMC_MODE_REL_WR) ||
+		     (max_block_cnt != mmc->rel_wr_sec_c)) {
+			cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
+			cmd.cmdarg = 0;
+			cmd.resp_type = MMC_RSP_R1b;
+			cmd.flags = 0;
 
-		err = mmc_send_cmd(mmc, &cmd, NULL);
-		if (err) {
-			printf("MMC write - stop cmd failed, err=%d\n", err);
-			return 0;
+			err = mmc_send_cmd(mmc, &cmd, NULL);
+			if (err) {
+				printf("MMC write - stop cmd failed, err=%d\n",
+					err);
+				return 0;
+			}
 		}
 
 		blkleftcnt -= blkwritecnt;
@@ -171,12 +205,6 @@ mmc_bwrite(int dev_num, unsigned long start, lbaint_t blkcnt, const void *src)
 
 	if (!mmc) {
 		printf("MMC Device %d not found\n", dev_num);
-		return 0;
-	}
-
-	err = mmc_set_blocklen(mmc, mmc->write_bl_len);
-	if (err) {
-		printf("MMC set write bl len failed, err=%d\n", err);
 		return 0;
 	}
 
@@ -288,12 +316,6 @@ mmc_bread(int dev_num, unsigned long start, lbaint_t blkcnt, void *dst)
 
 	if (!mmc) {
 		printf("MMC Device %d not found\n", dev_num);
-		return 0;
-	}
-
-	err = mmc_set_blocklen(mmc, mmc->read_bl_len);
-	if (err) {
-		printf("MMC set read bl len failed, err=%d\n", err);
 		return 0;
 	}
 
@@ -455,9 +477,10 @@ static int mmc_change_freq(struct mmc *mmc)
 	 * Instead of probing according to the bus testing procedure,
 	 * the buswitdh that is supported from the MMC device is hardcoded
 	 * to both 8 and/or 4 bit. It is up to the host driver to set
-	 * other limitations.
+	 * other limitations. This also applies to DDR mode.
 	 */
-	mmc->card_caps = MMC_MODE_4BIT | MMC_MODE_8BIT;
+	mmc->card_caps = MMC_MODE_4BIT | MMC_MODE_8BIT | MMC_MODE_DDR |
+		MMC_MODE_REL_WR;
 
 	/* Only version 4 supports high-speed */
 	if (mmc->version < MMC_VERSION_4)
@@ -477,16 +500,18 @@ static int mmc_change_freq(struct mmc *mmc)
 	 * read.
 	 */
 
-	cardtype = ext_csd[EXT_CSD_CARD_TYPE] & 0xf;
+	mmc->wr_rel_param = ext_csd[EXT_CSD_WR_REL_PARAM];
+	mmc->rel_wr_sec_c = ext_csd[EXT_CSD_REL_WR_SEC_C];
+
+	if (mmc->rel_wr_sec_c == 1)
+		mmc->card_caps &= ~MMC_MODE_REL_WR;
 
 	err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_HS_TIMING, 1);
-
 	if (err)
 		return err;
 
 	/* Now check to see that it worked */
 	err = mmc_send_ext_csd(mmc, ext_csd);
-
 	if (err)
 		return err;
 
@@ -498,10 +523,15 @@ static int mmc_change_freq(struct mmc *mmc)
 	 * High Speed mode is set, two types: SDR 52MHz or SDR 26MHz
 	 * DDR mode is not supported yet.
 	 */
+	cardtype = ext_csd[EXT_CSD_CARD_TYPE];
 	if (cardtype & MMC_HS_52MHZ)
 		mmc->card_caps |= MMC_MODE_HS_52MHz | MMC_MODE_HS;
 	else
 		mmc->card_caps |= MMC_MODE_HS;
+
+	if (mmc->wr_rel_param & EXT_CSD_WR_REL_PARAM_HS_CTRL_REL)
+		err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
+				 EXT_CSD_WR_REL_SET, 1);
 
 	return 0;
 }
@@ -556,19 +586,15 @@ static int sd_change_freq(struct mmc *mmc)
 
 	timeout = 3;
 
-retry_scr:
-	data.dest = (char *)&scr;
-	data.blocksize = 8;
-	data.blocks = 1;
-	data.flags = MMC_DATA_READ;
-
-	err = mmc_send_cmd(mmc, &cmd, &data);
-	if (err) {
-		if (timeout--)
-			goto retry_scr;
-
+	do {
+		data.dest = (char *)&scr;
+		data.blocksize = 8;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		err = mmc_send_cmd(mmc, &cmd, &data);
+	} while (err && timeout--);
+	if (!timeout)
 		return err;
-	}
 
 	mmc->scr[0] = __be32_to_cpu(scr[0]);
 	mmc->scr[1] = __be32_to_cpu(scr[1]);
@@ -781,13 +807,11 @@ static int mmc_startup(struct mmc *mmc)
 	 * Check for SD!
 	 */
 	if (mmc->high_capacity) {
-		csize = (mmc->csd[1] & 0x3f) << 16
-			| (mmc->csd[2] & 0xffff0000) >> 16;
+		csize = CSD_HC_SIZE(mmc->csd);
 		cmult = 8;
 	} else {
-		csize = (mmc->csd[1] & 0x3ff) << 2
-			| (mmc->csd[2] & 0xc0000000) >> 30;
-		cmult = (mmc->csd[2] & 0x00038000) >> 15;
+		csize = CSD_C_SIZE(mmc->csd);
+		cmult = CSD_C_SIZE_MULT(mmc->csd);
 	}
 
 	/* This is only correct for MMC cards up to 2GB. SD? */
@@ -855,7 +879,41 @@ static int mmc_startup(struct mmc *mmc)
 		else
 			mmc_set_clock(mmc, 25000000);
 	} else {
-		if (mmc->card_caps & MMC_MODE_8BIT) {
+		if ((mmc->card_caps & MMC_MODE_DDR_8BIT) == MMC_MODE_DDR_8BIT) {
+			/* Set the card to use 8 bit*/
+			printf("EXT_CSD_BUS_WIDTH_DDR_8\n");
+			err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
+					EXT_CSD_BUS_WIDTH,
+					EXT_CSD_BUS_WIDTH_DDR_8);
+			if (err)
+				return err;
+
+			err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
+					EXT_CSD_POWER_CLASS,
+					0xAA);
+			if (err)
+				return err;
+			printf("EXT_CSD_BUS_WIDTH_DDR_8\n");
+			mmc->ddr_en = 1;
+			mmc_set_bus_width(mmc, 8);
+		} else if ((mmc->card_caps & MMC_MODE_DDR_4BIT) ==
+			    MMC_MODE_DDR_4BIT) {
+			/* Set the card to use 4 bit*/
+			err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
+					EXT_CSD_BUS_WIDTH,
+					EXT_CSD_BUS_WIDTH_DDR_4);
+			if (err)
+				return err;
+
+			err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
+					EXT_CSD_POWER_CLASS,
+					0xAA);
+			if (err)
+				return err;
+			printf("EXT_CSD_BUS_WIDTH_DDR_4\n");
+			mmc->ddr_en = 1;
+			mmc_set_bus_width(mmc, 4);
+		} else if (mmc->card_caps & MMC_MODE_8BIT) {
 			/* Set the card to use 8 bit*/
 			err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 					EXT_CSD_BUS_WIDTH,
@@ -884,6 +942,15 @@ static int mmc_startup(struct mmc *mmc)
 				mmc_set_clock(mmc, 26000000);
 		} else
 			mmc_set_clock(mmc, 20000000);
+
+		if (mmc->card_caps & MMC_MODE_REL_WR) {
+			err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
+					 EXT_CSD_WR_REL_SET,
+					 0x1F);
+
+			if (err)
+				return err;
+		}
 	}
 
 	/* fill in device description */
@@ -987,6 +1054,13 @@ int mmc_init(struct mmc *mmc)
 	}
 
 	err = mmc_startup(mmc);
+
+	if (!err) {
+		err = mmc_set_blocklen(mmc, 512);
+		if (err)
+			printf("MMC set write bl len failed, err=%d\n", err);
+	}
+
 	debug("mmc_startup returns %d\n", err);
 	return err;
 }
@@ -1001,6 +1075,12 @@ static int __def_mmc_init(bd_t *bis)
 }
 
 int cpu_mmc_init(bd_t *bis) __attribute__((weak, alias("__def_mmc_init")));
+/*
+ * It seems attribute 'weak' does not work as intended. With gcc 4.4.1 and
+ * optimization O2 it always links in the weak function. Declare board_mmc_init
+ * as external.
+ */
+extern int board_mmc_init(bd_t *bis);
 
 void print_mmc_devices(char separator)
 {

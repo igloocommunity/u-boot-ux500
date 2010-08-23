@@ -13,10 +13,11 @@
 /* See SDI (SD card host interface) documentation in U8500 sw specification. */
 
 #define COMMAND_REG_DELAY 	300
-#define DATA_REG_DELAY 		1000
+#define DATA_REG_DELAY 		10000
 #define CLK_CHANGE_DELAY 	2000
 
 #define MAX_ERROR_VALUE -65
+#ifndef __ASSEMBLY__
 enum mmc_result {
 	/* MMC specific error defines */
 	MMC_CMD_CRC_FAIL = (MAX_ERROR_VALUE - 1),/* Command response received
@@ -95,6 +96,7 @@ enum mmc_result {
 	MMC_NO_MORE_FILTER_PENDING_EVENT = 5,
 	MMC_NO_PENDING_EVENT_ERROR = 7,
 };
+#endif
 
 #define MCLK	(100*1000*1000)
 
@@ -185,7 +187,8 @@ enum mmc_result {
 #define SDI_CMD_CE_ATACMD	(0x00004000)
 #define SDI_CMD_CBOOTMODEEN	(0x00008000)
 
-#define SDI_DTIMER_DEFAULT	(0xFFFF0000)
+/* MMC_DATA_TIMEOUT sets the data timeout in seconds */
+#define MMC_DATA_TIMEOUT	(30)
 
 /* SDI Status register bits */
 
@@ -261,6 +264,7 @@ enum mmc_result {
 
 #define SDI_FIFO_BURST_SIZE		(8)
 
+#ifndef __ASSEMBLY__
 struct sdi_registers {
 	u32 power;		/* 0x00*/
 	u32 clock;		/* 0x04*/
@@ -293,5 +297,6 @@ struct sdi_registers {
 	u32 pcell_id2;		/* 0xFF8*/
 	u32 pcell_id3;		/* 0xFFC*/
 };
+#endif
 
 #endif

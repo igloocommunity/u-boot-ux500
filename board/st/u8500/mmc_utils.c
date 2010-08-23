@@ -66,18 +66,23 @@ static struct partition partitions_v1[] = {
 	[0] = PART(0x83, 0x000A0000,  0x00004000),	/* Kernel */
 	[1] = PART(0x83, 0x000A4000,  0x00080000),	/* Root file system */
 	[2] = PART(0x83, 0x001FF800,  0x00000800),	/* Modem parameters */
-	[3] = {0},
+	[3] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
 #undef PART
 
-int write_partition_block(void)
+int write_partition_block(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	int err;
 	u32 offset = PIB_EMMC_ADDR;
 	u8 mbr[512];
 	u8 emmc_existing_partition[512];
 	struct mmc *boot_dev = NULL;
+
+	(void) cmdtp;  /* Parameter not used! */
+	(void) flag; /* Parameter not used! */
+	(void) argc; /* Parameter not used! */
+	(void) argv; /* Parameter not used! */
 
 	memset(mbr, 0, 0x1be);
 	if (u8500_is_earlydrop())
@@ -135,6 +140,11 @@ static int mmc_read_cmd_file(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	long sz;
 	char mmc_cmdbuffer[1024];
+
+	(void) cmdtp;  /* Parameter not used! */
+	(void) flag; /* Parameter not used! */
+	(void) argc; /* Parameter not used! */
+	(void) argv; /* Parameter not used! */
 
 	sz = file_fat_read("command.txt", &mmc_cmdbuffer,
 			   sizeof(mmc_cmdbuffer) - 1);

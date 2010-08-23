@@ -42,8 +42,13 @@
 
 #define MMC_MODE_HS		0x001
 #define MMC_MODE_HS_52MHz	0x010
+#define MMC_MODE_1BIT		0x000
 #define MMC_MODE_4BIT		0x100
 #define MMC_MODE_8BIT		0x200
+#define MMC_MODE_DDR		0x400
+#define MMC_MODE_DDR_4BIT	(MMC_MODE_4BIT | MMC_MODE_DDR)
+#define MMC_MODE_DDR_8BIT	(MMC_MODE_8BIT | MMC_MODE_DDR)
+#define MMC_MODE_REL_WR		0x800
 
 #define SD_DATA_4BIT	0x00040000
 
@@ -72,6 +77,7 @@
 #define MMC_CMD_SET_BLOCKLEN		16
 #define MMC_CMD_READ_SINGLE_BLOCK	17
 #define MMC_CMD_READ_MULTIPLE_BLOCK	18
+#define MMC_CMD_SET_BLOCK_COUNT		23
 #define MMC_CMD_WRITE_SINGLE_BLOCK	24
 #define MMC_CMD_WRITE_MULTIPLE_BLOCK	25
 #define MMC_CMD_APP_CMD			55
@@ -128,11 +134,20 @@
  * EXT_CSD fields
  */
 
-#define EXT_CSD_BUS_WIDTH	183	/* R/W */
-#define EXT_CSD_HS_TIMING	185	/* R/W */
-#define EXT_CSD_CARD_TYPE	196	/* RO */
-#define EXT_CSD_REV		192	/* RO */
-#define EXT_CSD_SEC_CNT		212	/* RO, 4 bytes */
+#define EXT_CSD_WR_REL_PARAM		166	/* R */
+#define EXT_CSD_WR_REL_SET		167	/* R/W */
+#define EXT_CSD_BUS_WIDTH		183	/* R/W */
+#define EXT_CSD_HS_TIMING		185	/* R/W */
+#define EXT_CSD_POWER_CLASS		187	/* R/W */
+#define EXT_CSD_REV			192	/* RO */
+#define EXT_CSD_CARD_TYPE		196	/* RO */
+#define EXT_CSD_OUT_OF_INT_TIME		198	/* RO */
+#define EXT_CSD_MIN_PERF_R_8_52		209	/* RO */
+#define EXT_CSD_MIN_PERF_W_8_52		210	/* RO */
+#define EXT_CSD_SEC_CNT			212	/* RO, 4 bytes */
+#define EXT_CSD_REL_WR_SEC_C		222	/* RO */
+#define EXT_CSD_PWR_CL_DDR_52_195	238	/* RO */
+#define EXT_CSD_PWR_CL_DDR_52_360	239	/* RO */
 
 /*
  * EXT_CSD field definitions
@@ -148,6 +163,11 @@
 #define EXT_CSD_BUS_WIDTH_1	0	/* Card is in 1 bit mode */
 #define EXT_CSD_BUS_WIDTH_4	1	/* Card is in 4 bit mode */
 #define EXT_CSD_BUS_WIDTH_8	2	/* Card is in 8 bit mode */
+#define EXT_CSD_BUS_WIDTH_DDR_4	5	/* Card is in 4 bit ddr mode  */
+#define EXT_CSD_BUS_WIDTH_DDR_8	6	/* Card is in 8 bit ddr mode */
+
+#define EXT_CSD_WR_REL_PARAM_HS_CTRL_REL	(1 << 0)
+#define EXT_CSD_WR_REL_PARAM_EN_REL_WR		(1 << 2)
 
 #define R1_ILLEGAL_COMMAND		(1 << 22)
 #define R1_APP_CMD			(1 << 5)
@@ -179,45 +199,49 @@ struct mmc_cid {
 	char pnm[7];
 };
 
-struct mmc_csd
-{
-	u8	csd_structure:2,
-		spec_vers:4,
-		rsvd1:2;
-	u8	taac;
-	u8	nsac;
-	u8	tran_speed;
-	u16	ccc:12,
-		read_bl_len:4;
-	u64	read_bl_partial:1,
-		write_blk_misalign:1,
-		read_blk_misalign:1,
-		dsr_imp:1,
-		rsvd2:2,
-		c_size:12,
-		vdd_r_curr_min:3,
-		vdd_r_curr_max:3,
-		vdd_w_curr_min:3,
-		vdd_w_curr_max:3,
-		c_size_mult:3,
-		sector_size:5,
-		erase_grp_size:5,
-		wp_grp_size:5,
-		wp_grp_enable:1,
-		default_ecc:2,
-		r2w_factor:3,
-		write_bl_len:4,
-		write_bl_partial:1,
-		rsvd3:5;
-	u8	file_format_grp:1,
-		copy:1,
-		perm_write_protect:1,
-		tmp_write_protect:1,
-		file_format:2,
-		ecc:2;
-	u8	crc:7;
-	u8	one:1;
-};
+/*
+ * CSD_EXTRACT can be used as is for all CSD members except for c_size
+ * because c_size spans over a 32-bit boundary and must be expressed by a
+ * combination.
+ */
+#define CSD_EXTRACT(csd, bit, width)	((csd[3-(bit/32)] & \
+	(((1 << width) - 1) << (bit - (bit/32) * 32))) >> (bit - (bit/32) * 32))
+
+#define CSD_STRUCTURE(csd)		CSD_EXTRACT(csd, 126, 2)
+#define CSD_SPEC_VERS(csd)		CSD_EXTRACT(csd, 122, 4)
+#define CSD_TAAC(csd)			CSD_EXTRACT(csd, 112, 8)
+#define CSD_NSAC(csd)			CSD_EXTRACT(csd, 104, 8)
+#define CSD_TRAN_SPEED(csd)		CSD_EXTRACT(csd, 96,  8)
+#define CSD_CCC(csd)			CSD_EXTRACT(csd, 4, 12)
+#define CSD_READ_BL_LEN(csd)		CSD_EXTRACT(csd, 80,  1)
+#define CSD_READ_BL_PARTIAL(csd)	CSD_EXTRACT(csd, 79,  1)
+#define CSD_WRITE_BLK_MISALIGN(csd)	CSD_EXTRACT(csd, 78,  1)
+#define CSD_READ_BLK_MISALIGN(csd)	CSD_EXTRACT(csd, 77,  1)
+#define CSD_DSR_IMP(csd)		CSD_EXTRACT(csd, 76,  1)
+#define CSD_C_SIZE(csd)			(CSD_EXTRACT(csd, 64, 10) << 2 | \
+					CSD_EXTRACT(csd, 62, 2))
+#define CSD_HC_SIZE(csd)		(CSD_EXTRACT(csd, 64, 8) << 16 | \
+					CSD_EXTRACT(csd, 48, 16))
+#define CSD_VDD_R_CURR_MIN(csd)		CSD_EXTRACT(csd, 59,  3)
+#define CSD_VDD_R_CURR_MAX(csd)		CSD_EXTRACT(csd, 56,  3)
+#define CSD_VDD_W_CURR_MIN(csd)		CSD_EXTRACT(csd, 53,  3)
+#define CSD_VDD_W_CURR_MAX(csd)		CSD_EXTRACT(csd, 50,  3)
+#define CSD_C_SIZE_MULT(csd)		CSD_EXTRACT(csd, 47,  3)
+#define CSD_ERASE_GRP_SIZE(csd)		CSD_EXTRACT(csd, 42,  5)
+#define CSD_ERASE_GRP_MULT(csd)		CSD_EXTRACT(csd, 37,  5)
+#define CSD_WP_GRP_SIZE(csd)		CSD_EXTRACT(csd, 32,  5)
+#define CSD_WP_GRP_ENABLE(csd)		CSD_EXTRACT(csd, 31,  1)
+#define CSD_DEFAULT_ECC(csd)		CSD_EXTRACT(csd, 29,  2)
+#define CSD_R2W_FACTOR(csd)		CSD_EXTRACT(csd, 26,  3)
+#define CSD_WRITE_BL_LEN(csd)		CSD_EXTRACT(csd, 22,  4)
+#define CSD_WRITE_BL_PARTIAL(csd)	CSD_EXTRACT(csd, 21,  1)
+#define CSD_FILE_FORMAT_GRP(csd)	CSD_EXTRACT(csd, 15,  1)
+#define CSD_COPY(csd)			CSD_EXTRACT(csd, 14,  1)
+#define CSD_PERM_WRITE_PROTECT(csd)	CSD_EXTRACT(csd, 13,  1)
+#define CSD_TMP_WRITE_PROTECT(csd)	CSD_EXTRACT(csd, 12,  1)
+#define CSD_ECC(csd)			CSD_EXTRACT(csd, 8,   2)
+#define CSD_CRC(csd)			CSD_EXTRACT(csd, 1,   2)
+#define CSD_ONE(csd)			CSD_EXTRACT(csd, 0,   1)
 
 struct mmc_cmd {
 	ushort cmdidx;
@@ -258,6 +282,10 @@ struct mmc {
 	uint tran_speed;
 	uint read_bl_len;
 	uint write_bl_len;
+	uint data_timeout;
+	uint wr_rel_param;
+	uint rel_wr_sec_c;
+	u8 ddr_en;
 	u64 capacity;
 	block_dev_desc_t block_dev;
 	int (*send_cmd)(struct mmc *mmc,
