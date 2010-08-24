@@ -347,25 +347,33 @@ unsigned int addr_vall_arr[] = {
 #define LDO_VAUX3_MASK		0x3
 #define LDO_VAUX3_ENABLE	0x1
 #define VAUX3_VOLTAGE_2_9V	0xd
+#define VAUX3_V2_VOLTAGE_2_91V	0x7
 
 static int hrefplus_mmc_power_init(void)
 {
 	int ret;
 	int val;
+	int rev;
 
-	if (!cpu_is_u8500v11())
+	if (!cpu_is_u8500v11() && !cpu_is_u8500v2())
 		return 0;
 
 	/*
-	 * On v1.1 HREF boards (HREF+), Vaux3 needs to be enabled for the SD
-	 * card to work.  This is done by enabling the regulators in the AB8500
-	 * via PRCMU I2C transactions.
+	 * On v1.1 HREF boards (HREF+) and v2 boards, Vaux3 needs to be
+	 * enabled for the SD card to work.  This is done by enabling
+	 * the regulators in the AB8500 via PRCMU I2C transactions.
 	 *
 	 * This code is derived from the handling of AB8500_LDO_VAUX3 in
 	 * ab8500_ldo_enable() and ab8500_ldo_disable() in Linux.
 	 *
 	 * Turn off and delay is required to have it work across soft reboots.
 	 */
+
+	ret = ab8500_read(AB8500_MISC, AB8500_REV_REG);
+	if (ret < 0)
+		goto out;
+
+	rev = ret;
 
 	ret = ab8500_read(AB8500_REGU_CTRL2, AB8500_REGU_VRF1VAUX3_REGU_REG);
 	if (ret < 0)
@@ -382,8 +390,13 @@ static int hrefplus_mmc_power_init(void)
 	udelay(10 * 1000);
 
 	/* Set the voltage to 2.9V */
-	ret = ab8500_write(AB8500_REGU_CTRL2,
-			   AB8500_REGU_VRF1VAUX3_SEL_REG, VAUX3_VOLTAGE_2_9V);
+	if (rev >= 0x20)
+		ret = ab8500_write(AB8500_REGU_CTRL2,
+			AB8500_REGU_VRF1VAUX3_SEL_REG, VAUX3_V2_VOLTAGE_2_91V);
+	else
+		ret = ab8500_write(AB8500_REGU_CTRL2,
+			AB8500_REGU_VRF1VAUX3_SEL_REG, VAUX3_VOLTAGE_2_9V);
+
 	if (ret < 0)
 		goto out;
 
