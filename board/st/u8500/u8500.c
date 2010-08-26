@@ -271,45 +271,31 @@ int dram_init(void)
 #ifdef CONFIG_VIDEO_LOGO
 int dss_init(void)
 {
-	int ret = 0;
 	uchar byte;
 	puts("MCDE:  ");
-	if (!cpu_is_u8500v11()) {
-		printf("Only HREF+ is supported \n");
+	if (!cpu_is_u8500v11() && !cpu_is_u8500v2()) {
+		printf("Only HREF+ or V2 is supported\n");
 		goto mcde_error;
 	}
-	(void) i2c_set_bus_num(0);
-	(void) i2c_read(CONFIG_SYS_I2C_GPIOE_ADDR, 0x80, 1, &byte, 1);
-	if (byte == 0x01)
-		board_id = 0;
-	else
-		board_id = 1;
-
-	if (board_id != 0) {
-		ret = mcde_startup();
-		if (ret) {
-			printf("startup failed\n");
-			goto mcde_error;
-		}
-		ret = mcde_display_image();
-		if (ret) {
-			printf("display_image failed\n");
-			goto mcde_error;
-		}
-
-		printf("ready \n");
-		setenv("startup_graphics", "1");
-		setenv("logo", "nologo");
-		goto mcde_ok;
-	} else {
-		ret = 1;
-		printf("MOP500 is not supported \n");
+	if (mcde_startup()) {
+		printf("startup failed\n");
+		goto mcde_error;
 	}
+	if (mcde_display_image()) {
+		printf("display_image failed\n");
+		goto mcde_error;
+	}
+
+	printf("ready\n");
+	setenv("startup_graphics", "1");
+	setenv("logo", "nologo");
+	return 0;
+
 mcde_error:
 	setenv("startup_graphics", "0");
 	setenv("logo", "0");
-mcde_ok:
-	return ret;
+
+	return -EINVAL;
 
 }
 #endif

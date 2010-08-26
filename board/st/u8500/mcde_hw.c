@@ -27,13 +27,13 @@
 u8 *mcdeio;
 u8 **dsiio;
 
-static inline u32 dsi_rreg(int __i, u32 __reg)
+static inline u32 dsi_rreg(int i, u32 reg)
 {
-	return readl(dsiio[__i] + __reg);
+	return readl(dsiio[i] + reg);
 }
-static inline void dsi_wreg(int __i, u32 __reg, u32 __val)
+static inline void dsi_wreg(int i, u32 reg, u32 val)
 {
-	writel(__val, dsiio[__i] + __reg);
+	writel(val, dsiio[i] + reg);
 }
 #define dsi_rfld(__i, __reg, __fld) \
 	((dsi_rreg(__i, __reg) & __reg##_##__fld##_MASK) >> \
@@ -43,13 +43,13 @@ static inline void dsi_wreg(int __i, u32 __reg, u32 __val)
 	~__reg##_##__fld##_MASK) | (((__val) << __reg##_##__fld##_SHIFT) & \
 		 __reg##_##__fld##_MASK))
 
-static inline u32 mcde_rreg(u32 __reg)
+static inline u32 mcde_rreg(u32 reg)
 {
-	return readl(mcdeio + __reg);
+	return readl(mcdeio + reg);
 }
-static inline void mcde_wreg(u32 __reg, u32 __val)
+static inline void mcde_wreg(u32 reg, u32 val)
 {
-	writel(__val, mcdeio + __reg);
+	writel(val, mcdeio + reg);
 }
 #define mcde_rfld(__reg, __fld) \
 	((mcde_rreg(__reg) & __reg##_##__fld##_MASK) >> \
@@ -127,10 +127,10 @@ struct chnl_regs {
 struct mcde_chnl_state {
 	t_bool inuse;
 	enum mcde_chnl id;
+	enum mcde_fifo fifo;
 	struct mcde_port port;
 	struct mcde_ovly_state *ovly0;
 	struct mcde_ovly_state *ovly1;
-	const struct chnl_config *cfg;
 	u32 transactionid;
 	u32 transactionid_regs;
 
@@ -154,7 +154,6 @@ static struct mcde_chnl_state channels[] = {
 	},
 };
 
-
 /* MCDE internal helpers */
 static u8 portfmt2dsipacking(enum mcde_port_pix_fmt pix_fmt)
 {
@@ -175,21 +174,98 @@ static u8 portfmt2bpp(enum mcde_port_pix_fmt pix_fmt)
 	}
 }
 
+static u8 get_dsi_formid(const struct mcde_port *port)
+{
+	if (port->ifc == DSI_VIDEO_MODE && port->link == 0)
+		return MCDE_CTRLA_FORMID_DSI0VID;
+	else if (port->ifc == DSI_VIDEO_MODE && port->link == 1)
+		return MCDE_CTRLA_FORMID_DSI1VID;
+	else if (port->ifc == DSI_VIDEO_MODE && port->link == 2)
+		return MCDE_CTRLA_FORMID_DSI2VID;
+	else if (port->ifc == DSI_CMD_MODE && port->link == 0)
+		return MCDE_CTRLA_FORMID_DSI0CMD;
+	else if (port->ifc == DSI_CMD_MODE && port->link == 1)
+		return MCDE_CTRLA_FORMID_DSI1CMD;
+	else if (port->ifc == DSI_CMD_MODE && port->link == 2)
+		return MCDE_CTRLA_FORMID_DSI2CMD;
+	return 0;
+}
+
 #define DSI_UNIT_INTERVAL_0	0x9
 
-void update_channel_static_registers(struct mcde_chnl_state *chnl)
+static int update_channel_static_registers(struct mcde_chnl_state *chnl)
 {
 	const struct mcde_port *port = &chnl->port;
 	int i = 0;
 	u8 idx = 2 * port->link + port->ifc;
 	u8 lnk = port->link;
-	/* Fifo & muxing */
-	mcde_wfld(MCDE_CONF0, SWAP_A_C0, TRUE);
-	mcde_wfld(MCDE_CR, FABMUX, FALSE);
+
+	if (!cpu_is_u8500v2()) {
+		/* Fifo & muxing */
+		mcde_wfld(MCDE_CONF0, SWAP_A_C0_V1, TRUE);
+		mcde_wfld(MCDE_CR, FABMUX_V1, FALSE);
+
+		if (port->ifc == DSI_VIDEO_MODE && port->link == 0)
+			mcde_wfld(MCDE_CR, DSIVID0_EN_V1, TRUE);
+		else if (port->ifc == DSI_VIDEO_MODE && port->link == 1)
+			mcde_wfld(MCDE_CR, DSIVID1_EN_V1, TRUE);
+		else if (port->ifc == DSI_VIDEO_MODE && port->link == 2)
+			mcde_wfld(MCDE_CR, DSIVID2_EN_V1, TRUE);
+		else if (port->ifc == DSI_CMD_MODE && port->link == 0)
+			mcde_wfld(MCDE_CR, DSICMD0_EN_V1, TRUE);
+		else if (port->ifc == DSI_CMD_MODE && port->link == 1)
+			mcde_wfld(MCDE_CR, DSICMD1_EN_V1, TRUE);
+		else if (port->ifc == DSI_CMD_MODE && port->link == 2)
+			mcde_wfld(MCDE_CR, DSICMD2_EN_V1, TRUE);
+
+		mcde_wreg(MCDE_CTRLC0, MCDE_CTRLC0_FIFOWTRMRK(0xa0));
+	} else {
+		switch (chnl->fifo) {
+		case MCDE_FIFO_A:
+			mcde_wreg(MCDE_CHNL0MUXING_V2 + chnl->id *
+			MCDE_CHNL0MUXING_V2_GROUPOFFSET,
+			MCDE_CHNL0MUXING_V2_FIFO_ID_ENUM(FIFO_A));
+			mcde_wfld(MCDE_CTRLA, FORMTYPE,
+					MCDE_CTRLA_FORMTYPE_DSI);
+			mcde_wfld(MCDE_CTRLA, FORMID,
+						get_dsi_formid(port));
+			mcde_wfld(MCDE_CTRLA, FIFOWTRMRK, 0x280);
+			break;
+		case MCDE_FIFO_B:
+			mcde_wreg(MCDE_CHNL0MUXING_V2 + chnl->id *
+			MCDE_CHNL0MUXING_V2_GROUPOFFSET,
+			MCDE_CHNL0MUXING_V2_FIFO_ID_ENUM(FIFO_B));
+			mcde_wfld(MCDE_CTRLB, FORMTYPE,
+					MCDE_CTRLB_FORMTYPE_DSI);
+			mcde_wfld(MCDE_CTRLB, FORMID,
+						get_dsi_formid(port));
+			mcde_wfld(MCDE_CTRLB, FIFOWTRMRK, 0x280);
+			break;
+		case MCDE_FIFO_C0:
+			mcde_wreg(MCDE_CHNL0MUXING_V2 + chnl->id *
+				MCDE_CHNL0MUXING_V2_GROUPOFFSET,
+				MCDE_CHNL0MUXING_V2_FIFO_ID_ENUM(FIFO_C0));
+			mcde_wfld(MCDE_CTRLC0, FORMTYPE,
+						MCDE_CTRLC0_FORMTYPE_DSI);
+			mcde_wfld(MCDE_CTRLC0, FORMID, get_dsi_formid(port));
+			mcde_wfld(MCDE_CTRLC0, FIFOWTRMRK, 0xa0);
+			break;
+		case MCDE_FIFO_C1:
+			mcde_wreg(MCDE_CHNL0MUXING_V2 + chnl->id *
+				MCDE_CHNL0MUXING_V2_GROUPOFFSET,
+				MCDE_CHNL0MUXING_V2_FIFO_ID_ENUM(FIFO_C1));
+			mcde_wfld(MCDE_CTRLC1, FORMTYPE,
+						MCDE_CTRLC1_FORMTYPE_DSI);
+			mcde_wfld(MCDE_CTRLC1, FORMID, get_dsi_formid(port));
+			mcde_wfld(MCDE_CTRLC1, FIFOWTRMRK, 0xa0);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 
 	/* Formatter */
 	dsi_wfld(lnk, DSI_MCTL_MAIN_DATA_CTL, LINK_EN, TRUE);
-
 	dsi_wfld(lnk, DSI_MCTL_MAIN_DATA_CTL, BTA_EN, TRUE);
 	dsi_wfld(lnk, DSI_MCTL_MAIN_DATA_CTL, READ_EN, TRUE);
 	dsi_wfld(lnk, DSI_MCTL_MAIN_DATA_CTL, REG_TE_EN, TRUE);
@@ -209,7 +285,7 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 		DSI_MCTL_ULPOUT_TIME_CKLANE_ULPOUT_TIME(1) |
 		DSI_MCTL_ULPOUT_TIME_DATA_ULPOUT_TIME(1));
 	dsi_wfld(lnk, DSI_CMD_MODE_CTL, ARB_MODE, FALSE);
-	dsi_wfld(lnk, DSI_CMD_MODE_CTL, ARB_PRI, port->ifc == 1);
+	dsi_wfld(lnk, DSI_CMD_MODE_CTL, ARB_PRI, port->ifc == DSI_CMD_MODE);
 	dsi_wfld(lnk, DSI_CMD_MODE_CTL, TE_TIMEOUT, 0x3ff);
 	dsi_wreg(lnk, DSI_MCTL_MAIN_EN,
 		DSI_MCTL_MAIN_EN_PLL_START(TRUE) |
@@ -217,29 +293,18 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 		DSI_MCTL_MAIN_EN_DAT1_EN(TRUE) |
 		DSI_MCTL_MAIN_EN_DAT2_EN(port->phy.dsi.num_data_lanes
 			== 2) |
-		DSI_MCTL_MAIN_EN_IF1_EN(port->ifc == 0) |
-		DSI_MCTL_MAIN_EN_IF2_EN(port->ifc == 1));
+		DSI_MCTL_MAIN_EN_IF1_EN(port->ifc == DSI_VIDEO_MODE) |
+		DSI_MCTL_MAIN_EN_IF2_EN(port->ifc == DSI_CMD_MODE));
 	while (dsi_rfld(lnk, DSI_MCTL_MAIN_STS, CLKLANE_READY) == 0 ||
 	       dsi_rfld(lnk, DSI_MCTL_MAIN_STS, DAT1_READY) == 0 ||
 	       dsi_rfld(lnk, DSI_MCTL_MAIN_STS, DAT2_READY) == 0) {
 		mdelay(1);
-		if (i++ == 10)
+		if (i++ == 10) {
 			printf("DSI lane not ready (link=%d)!\n", lnk);
+			return -EINVAL;
+		}
 	}
 
-
-	if (port->ifc == 0 && port->link == 0)
-		mcde_wfld(MCDE_CR, DSIVID0_EN, TRUE);
-	else if (port->ifc == 0 && port->link == 1)
-		mcde_wfld(MCDE_CR, DSIVID1_EN, TRUE);
-	else if (port->ifc == 0 && port->link == 2)
-		mcde_wfld(MCDE_CR, DSIVID2_EN, TRUE);
-	else if (port->ifc == 1 && port->link == 0)
-		mcde_wfld(MCDE_CR, DSICMD0_EN, TRUE);
-	else if (port->ifc == 1 && port->link == 1)
-		mcde_wfld(MCDE_CR, DSICMD1_EN, TRUE);
-	else if (port->ifc == 1 && port->link == 2)
-		mcde_wfld(MCDE_CR, DSICMD2_EN, TRUE);
 	mcde_wreg(MCDE_DSIVID0CONF0 +
 		idx * MCDE_DSIVID0CONF0_GROUPOFFSET,
 		MCDE_DSIVID0CONF0_BLANKING(0) |
@@ -249,10 +314,10 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 		MCDE_DSIVID0CONF0_BYTE_SWAP(FALSE) |
 		MCDE_DSIVID0CONF0_DCSVID_NOTGEN(TRUE));
 
-	if (port->ifc == 0)
+	if (port->ifc == DSI_VIDEO_MODE)
 		dsi_wfld(port->link, DSI_CMD_MODE_CTL, IF1_ID,
 			port->phy.dsi.virt_id);
-	else if (port->ifc == 1)
+	else if (port->ifc == DSI_CMD_MODE)
 		dsi_wfld(port->link, DSI_CMD_MODE_CTL, IF2_ID,
 			port->phy.dsi.virt_id);
 
@@ -260,10 +325,11 @@ void update_channel_static_registers(struct mcde_chnl_state *chnl)
 	mcde_wreg(MCDE_VSCRC0,
 		MCDE_VSCRC0_VSPMIN(1) |
 		MCDE_VSCRC0_VSPMAX(0xff));
-	mcde_wreg(MCDE_CTRLC0, MCDE_CTRLC0_FIFOWTRMRK(0xa0));
 
 	mcde_wfld(MCDE_CR, MCDEEN, TRUE);
 	dbg_printk("Static registers setup, chnl=%d\n", chnl->id);
+
+	return 0;
 }
 
 static void update_overlay_registers(u8 idx, struct ovly_regs *regs,
@@ -310,9 +376,9 @@ static void update_overlay_registers(u8 idx, struct ovly_regs *regs,
 		MCDE_OVL0CR_OVLB(FALSE) |
 		MCDE_OVL0CR_FETCH_ROPC(0) |
 		MCDE_OVL0CR_STBPRIO(0) |
-		MCDE_OVL0CR_BURSTSIZE(11) | /* TODO: _HW_8W */
-		MCDE_OVL0CR_MAXOUTSTANDING(2) | /* TODO: get from ovly */
-		MCDE_OVL0CR_ROTBURSTSIZE(2)); /* TODO: _4W, calculate? */
+		MCDE_OVL0CR_BURSTSIZE_ENUM(HW_8W) |
+		MCDE_OVL0CR_MAXOUTSTANDING_ENUM(4_REQ) |
+		MCDE_OVL0CR_ROTBURSTSIZE_ENUM(HW_8W));
 	mcde_wreg(MCDE_OVL0CONF + idx * MCDE_OVL0CONF_GROUPOFFSET,
 		MCDE_OVL0CONF_PPL(ppl) |
 		MCDE_OVL0CONF_EXTSRC_ID(idx) |
@@ -360,8 +426,6 @@ void update_channel_registers(enum mcde_chnl chnl_id, struct chnl_regs *regs,
 		MCDE_CHNL0BCKGNDCOL_B(255) | /* TODO: Temp */
 		MCDE_CHNL0BCKGNDCOL_G(255) |
 		MCDE_CHNL0BCKGNDCOL_R(255));
-	mcde_wreg(MCDE_CHNL0PRIO + idx * MCDE_CHNL0PRIO_GROUPOFFSET,
-		MCDE_CHNL0PRIO_CHNLPRIO(0));
 
 	mcde_wfld(MCDE_CRC, POWEREN, TRUE);
 	mcde_wfld(MCDE_CRC, FLOEN, TRUE);
@@ -424,16 +488,19 @@ struct mcde_chnl_state *mcde_chnl_get(enum mcde_chnl chnl_id,
 	}
 
 	chnl->port = *port;
+	chnl->fifo = fifo;
+
+	if (update_channel_static_registers(chnl) < 0)
+		return ERR_PTR(-EINVAL);
+
 	chnl->synchronized_update = FALSE;
 	chnl->update_x = 0;
 	chnl->update_y = 0;
 	chnl->update_w = 0;
 	chnl->update_h = 0;
 	mcde_chnl_apply(chnl);
-
-	update_channel_static_registers(chnl);
-
 	chnl->inuse = TRUE;
+
 	return chnl;
 }
 
@@ -607,7 +674,7 @@ void mcde_ovly_apply(struct mcde_ovly_state *ovly)
 	case MCDE_OVLYPIXFMT_RGB888:
 		ovly->regs.bits_per_pixel = 24;
 		ovly->regs.bpp = MCDE_EXTSRC0CONF_BPP_RGB888;
-		ovly->regs.bgr = TRUE;
+		ovly->regs.bgr = FALSE;
 		ovly->regs.bebo = FALSE;
 		ovly->regs.opq = TRUE;
 		break;

@@ -24,11 +24,17 @@ enum mcde_port_mode {
 /* MCDE fifos */
 enum mcde_fifo {
 	MCDE_FIFO_A  = 0,
+	MCDE_FIFO_B  = 1,
+	MCDE_FIFO_C0 = 2,
+	MCDE_FIFO_C1 = 3,
 };
 
 /* MCDE channels (pixel pipelines) */
 enum mcde_chnl {
+	MCDE_CHNL_A  = 0,
+	MCDE_CHNL_B  = 1,
 	MCDE_CHNL_C0 = 2,
+	MCDE_CHNL_C1 = 3,
 };
 
 /* Update sync mode */
@@ -62,6 +68,10 @@ enum mcde_port_pix_fmt {
 	MCDE_PORTPIXFMT_DSI_24BPP =        0x34,
 
 };
+
+/* DSI modes */
+#define DSI_VIDEO_MODE	0
+#define DSI_CMD_MODE	1
 
 struct mcde_chnl_state;
 

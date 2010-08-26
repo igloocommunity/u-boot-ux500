@@ -189,13 +189,10 @@ static int mcde_display_power_init(void)
 {
 	int val;
 	int i;
-	int ret;
-
-	if (!cpu_is_u8500v11())
-		return 0;
 
 	/*
-	 * On v1.1 HREF boards (HREF+), Vaux1 needs to be enabled for the
+	 * On v1.1 HREF boards (HREF+) and V2 boards
+	 * Vaux1 needs to be enabled for the
 	 * display to work.  This is done by enabling the regulators in the
 	 * AB8500 via PRCMU I2C transactions.
 	 *
@@ -206,21 +203,18 @@ static int mcde_display_power_init(void)
 	 * Turn off and delay is required to have it work across soft reboots.
 	 */
 
-	ret = ab8500_read(AB8500_REGU_CTRL2,
+	val = ab8500_read(AB8500_REGU_CTRL2,
 		AB8500_REGU_VAUX12_REGU_REG);
-	if (ret < 0) {
+	if (val < 0) {
 		printf("Read vaux1 status failed\n");
-		goto out;
+		return -EINVAL;
 	}
 
-	val = ret;
-
 	/* Turn off */
-	ret = ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VAUX12_REGU_REG,
-			   val & ~MASK_LDO_VAUX1);
-	if (ret < 0) {
+	if (ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VAUX12_REGU_REG,
+			   val & ~MASK_LDO_VAUX1) < 0) {
 		printf("Turn off Vaux1 failed\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	udelay(10 * 1000);
@@ -229,12 +223,11 @@ static int mcde_display_power_init(void)
 	/* Find voltage from vauxn table */
 	for (i = 0; i < ARRAY_SIZE(vauxn_table) ; i++) {
 		if (vauxn_table[i].voltage == CONFIG_SYS_DISPLAY_VOLTAGE) {
-			ret = ab8500_write(AB8500_REGU_CTRL2,
+			if (ab8500_write(AB8500_REGU_CTRL2,
 				AB8500_REGU_VAUX1_SEL_REG,
-				vauxn_table[i].regval);
-			if (ret < 0) {
+				vauxn_table[i].regval) < 0) {
 				printf("AB8500_REGU_VAUX1_SEL_REG failed\n");
-				goto out;
+				return -EINVAL;
 			}
 			break;
 		}
@@ -244,38 +237,34 @@ static int mcde_display_power_init(void)
 	val = val | (1 << MASK_LDO_VAUX1_SHIFT);
 
 	/* Turn on the supply */
-	ret = ab8500_write(AB8500_REGU_CTRL2,
-			AB8500_REGU_VAUX12_REGU_REG, val);
-	if (ret < 0) {
+	if (ab8500_write(AB8500_REGU_CTRL2,
+			AB8500_REGU_VAUX12_REGU_REG, val) < 0) {
 		printf("Turn on Vaux1 failed\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	/*  DCI & CSI (DSI / PLL / Camera) */ /* Vana & Vpll HP mode */
-	ret = ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VPLLVANA_REGU_REG,
-						VANA_ENABLE_IN_HP_MODE);
-	if (ret < 0) {
+	if (ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VPLLVANA_REGU_REG,
+						VANA_ENABLE_IN_HP_MODE) < 0) {
 		printf("Turn on Vana failed\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	/* Enable the PWM control for the backlight Main display */
-	ret = ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG, ENABLE_PWM1);
-	if (ret < 0) {
+	if (ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
+							ENABLE_PWM1) < 0) {
 		printf("Enable PWM1 failed\n");
-		goto out;
+		return -EINVAL;
 	}
-	ret = ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL1_REG,
-						PWM_DUTY_LOW_1024_1024);
-	if (ret < 0) {
+	if (ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL1_REG,
+						PWM_DUTY_LOW_1024_1024) < 0) {
 		printf("PWM_DUTY_LOW_1024_1024 failed\n");
-		goto out;
+		return -EINVAL;
 	}
-	ret = ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL2_REG,
-						PWM_DUTY_HI_1024_1024);
-	if (ret < 0) {
+	if (ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL2_REG,
+						PWM_DUTY_HI_1024_1024) < 0) {
 		printf("PWM_DUTY_HI_1024_1024 failed\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	if (!mcde_is_vaux1_enabled() || mcde_get_vaux1_voltage()
@@ -287,8 +276,6 @@ static int mcde_display_power_init(void)
 	}
 
 	return 0;
-out:
-	return ret;
 }
 
 
