@@ -24,7 +24,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)lib$(BOARD).a
 
-COBJS	:= u8500.o flash.o gpio.o u8500_i2c.o mmc_host.o mmc_utils.o clock.o prcmu.o mcde_display.o mcde_hw.o ab8500vibra.o
+COBJS	:= u8500.o flash.o gpio.o u8500_i2c.o mmc_host.o mmc_utils.o clock.o prcmu.o mcde_display.o mcde_hw.o ab8500vibra.o cmd_cdump.o
 SOBJS	:= mmc_fifo.o
 
 SRCS	:= $(SOBJS:.o=.S) $(COBJS:.o=.c)

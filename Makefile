@@ -3160,6 +3160,8 @@ u8500_udc_config \
 u8500_auto_config: unconfig
 	@mkdir -p $(obj)include
 	@mkdir -p $(obj)board/st/u8500
+	@echo "LDSCRIPT:=$(SRCTREE)/board/st/u8500/u-boot.lds"\
+		> $(obj)board/st/u8500/config.tmp
 	@ > $(obj)include/config.h
 	@if [ "$(findstring _def, $@)" ] ; then \
 		echo "#ifndef  CONFIG_SKIP_LOWLEVEL_INIT " >> $(obj)include/config.h ; \

@@ -44,15 +44,15 @@
 #define BOARD_LATE_INIT		1
 
 /*-----------------------------------------------------------------------
- * Size of malloc() pool
+ * Size of environment and malloc() pool
  */
-#ifdef CONFIG_BOOT_SRAM
-#define CONFIG_ENV_SIZE		32*1024
-#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 64*1024)
-#else
-#define CONFIG_ENV_SIZE		128*1024
-#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 256*1024)
-#endif
+/*
+ * If you use U-Boot as crash kernel, make sure that it does not overwrite
+ * information saved by kexec during panic. Kexec expects the start
+ * address of the executable 32K above "crashkernel" address.
+ */
+#define CONFIG_ENV_SIZE		4*1024
+#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 16*1024)
 #define CONFIG_SYS_GBL_DATA_SIZE	128	/* for initial data */
 
 /*-----------------------------------------------------------------------
@@ -116,6 +116,9 @@
 #endif
 #define CONFIG_ZERO_BOOTDELAY_CHECK	/* check for keypress on bootdelay==0 */
 
+/* preboot is set dynamically to "checkcrash" if U-Boot was executed by kexec */
+#define CONFIG_PREBOOT
+
 #undef CONFIG_BOOTARGS
 #define CONFIG_BOOTCOMMAND	"run emmcboot"
 
@@ -131,6 +134,7 @@
 	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
 		"init=init "						\
 		"board_id=${board_id} "					\
+		"crashkernel=${crashkernel} "				\
 		"logo.${logo} "						\
 		"startup_graphics=${startup_graphics}\0"		\
 	"emmcargs=setenv bootargs ${bootargs} "				\

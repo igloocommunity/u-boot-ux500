@@ -12,7 +12,7 @@
 sinclude $(OBJTREE)/board/$(BOARDDIR)/config.tmp
 
 ifndef TEXT_BASE
-TEXT_BASE = 0x05600000
+TEXT_BASE = 0x05608000
 endif
 
 PLATFORM_CPPFLAGS += -DTEXT_BASE=$(TEXT_BASE)

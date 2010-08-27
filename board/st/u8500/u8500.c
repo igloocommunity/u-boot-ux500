@@ -69,6 +69,14 @@
 int board_id;	/* set in board_late_init() */
 int errno;
 
+/*
+ * Flag to indicate from where to where we have to copy the initialised data.
+ * In case we were loaded, its value is -1 and .data must be saved for an
+ * eventual restart. It is 1 if .data was restored, i.e. we were restarted,
+ * e.g. by kexec.
+ */
+static volatile int data_init_flag = -1; /* -1 to get it into .data section */
+
 /* PLLs for clock management registers */
 enum {
 	GATED = 0,
@@ -194,6 +202,28 @@ int cpu_is_u8500v2(void)
 
 int board_init(void)
 {
+	extern char _idata_start[];
+	extern char _data_start[];
+	extern char _data_end[];
+	unsigned long data_len;
+
+	data_len = _data_end - _data_start;
+	if (++data_init_flag == 0) {
+		/*
+		 * first init after reset/loading
+		 * save .data section for restart
+		 */
+		memcpy(_idata_start, _data_start, data_len);
+	} else {
+		/*
+		 * restart, e.g. by kexec
+		 * copy back .data section
+		 */
+		memcpy(_data_start, _idata_start, data_len);
+		/* memcpy set data_init_flag back to zero */
+		++data_init_flag;
+	}
+
     gd->bd->bi_arch_number = 0x1A4;
     gd->bd->bi_boot_params = 0x00000100;
 
@@ -378,6 +408,7 @@ int board_late_init(void)
 #ifdef CONFIG_MMC
 	uchar byte_array[] = {0x06, 0x06};
 #endif
+	char strbuf[80];
 
 	/*
 	 * Determine and set board_id environment variable
@@ -435,6 +466,25 @@ int board_late_init(void)
 		setenv("memargs", "setenv bootargs ${bootargs} ${memargs512}");
 		setenv("mem", "512M");
 	}
+
+	/*
+	 * Create crashkernel env dynamically since it depends on U-Boot start
+	 * address. U-Boot itself is used for dumping.
+	 * The 32K offset is hardcoded in the kexec-tools.
+	 * Parsed by Linux setup.c:reserve_crashkernel() using
+	 * lib/cmdline.c:memparse().
+	 * crashkernel=ramsize-range:size[,...][@offset]
+	 */
+	sprintf(strbuf, "crashkernel=1M@0x%lx", _armboot_start - 0x8000);
+	setenv("crashkernel", strbuf);
+
+	/*
+	 * Check for a crashdump, if data_init_flag > 0, i.e. we were
+	 * restarted e.g. by kexec. Do not check for crashdump if we were just
+	 * loaded from the x-loader.
+	 */
+	if (data_init_flag > 0)
+		setenv("preboot", "checkcrash");
 
 	return (0);
 }
