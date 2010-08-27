@@ -23,7 +23,8 @@
 
 #include <asm/arch/ab8500.h>
 
-#include "prcmu-fw.h"
+#include "common.h"
+#include "prcmu-fw-defs_v1.h"
 
 #define DEBUG 0
 #define dbg_printk(format, arg...)			\
@@ -32,16 +33,59 @@
 
 #define PRCMU_BASE			U8500_PRCMU_BASE
 
-/* CPU mailbox registers */
-#define PRCM_MBOX_CPU_VAL       	(PRCMU_BASE + 0x0fc)
-#define PRCM_MBOX_CPU_SET       	(PRCMU_BASE + 0x100)
-#define PRCM_MBOX_CPU_CLR       	(PRCMU_BASE + 0x104)
+#define PRCM_MBOX_CPU_VAL		(PRCMU_BASE + 0x0fc)
+#define PRCM_MBOX_CPU_SET		(PRCMU_BASE + 0x100)
+
+#define PRCM_XP70_CUR_PWR_STATE		(tcdm_base + 0xFFC)
+
+#define PRCM_REQ_MB5			(tcdm_base + 0xE44)
+#define PRCM_ACK_MB5			(tcdm_base + 0xDF4)
+
+/* Mailbox 5 Requests */
+#define PRCM_REQ_MB5_I2COPTYPE_REG	(PRCM_REQ_MB5 + 0x0)
+#define PRCM_REQ_MB5_BIT_FIELDS		(PRCM_REQ_MB5 + 0x1)
+#define PRCM_REQ_MB5_I2CSLAVE		(PRCM_REQ_MB5 + 0x2)
+#define PRCM_REQ_MB5_I2CVAL		(PRCM_REQ_MB5 + 0x3)
+
+/* Mailbox 5 ACKs */
+#define PRCM_ACK_MB5_STATUS	(PRCM_ACK_MB5 + 0x1)
+#define PRCM_ACK_MB5_SLAVE	(PRCM_ACK_MB5 + 0x2)
+#define PRCM_ACK_MB5_VAL	(PRCM_ACK_MB5 + 0x3)
+
+#define PRCMU_I2C_WRITE(slave)	\
+	(((slave) << 1) | I2CWRITE | (cpu_is_u8500v2() ? (1 << 6) : 0))
+
+#define PRCMU_I2C_READ(slave) \
+	(((slave) << 1) | I2CREAD | (cpu_is_u8500v2() ? (1 << 6) : 0))
+
+enum mailbox_t {
+	REQ_MB0 = 0,	/* Uses XP70_IT_EVENT_10 */
+	REQ_MB1 = 1,	/* Uses XP70_IT_EVENT_11 */
+	REQ_MB2 = 2,	/* Uses XP70_IT_EVENT_12 */
+	REQ_MB5 = 5,	/* Uses XP70_IT_EVENT_17 */
+};
+
+static void *tcdm_base;
 
 static int prcmu_is_ready(void)
 {
-	int ready = readb(PRCM_XP70_CUR_PWR_STATE) == AP_EXECUTE;
+	int ready;
+
+	if (!tcdm_base) {
+		if (cpu_is_u8500v1())
+			tcdm_base = (void *) U8500_PRCMU_TCDM_BASE_V1;
+		else if (cpu_is_u8500v2())
+			tcdm_base = (void *) U8500_PRCMU_TCDM_BASE;
+		else {
+			printf("PRCMU: Unsupported chip version\n");
+			return 0;
+		}
+	}
+
+	ready = readb(PRCM_XP70_CUR_PWR_STATE) == AP_EXECUTE;
 	if (!ready)
 		printf("PRCMU firmware not ready\n");
+
 	return ready;
 }
 
@@ -87,7 +131,7 @@ int prcmu_i2c_read(u8 reg, u16 slave)
 			reg, slave);
 
 	/* prepare the data for mailbox 5 */
-	writeb((reg << 1) | I2CREAD, PRCM_REQ_MB5_I2COPTYPE_REG);
+	writeb(PRCMU_I2C_READ(reg), PRCM_REQ_MB5_I2COPTYPE_REG);
 	writeb((1 << 3) | 0x0, PRCM_REQ_MB5_BIT_FIELDS);
 	writeb(slave, PRCM_REQ_MB5_I2CSLAVE);
 	writeb(0, PRCM_REQ_MB5_I2CVAL);
@@ -134,7 +178,7 @@ int prcmu_i2c_write(u8 reg, u16 slave, u8 reg_data)
 			reg, slave);
 
 	/* prepare the data for mailbox 5 */
-	writeb((reg << 1) | I2CWRITE, PRCM_REQ_MB5_I2COPTYPE_REG);
+	writeb(PRCMU_I2C_WRITE(reg), PRCM_REQ_MB5_I2COPTYPE_REG);
 	writeb((1 << 3) | 0x0, PRCM_REQ_MB5_BIT_FIELDS);
 	writeb(slave, PRCM_REQ_MB5_I2CSLAVE);
 	writeb(reg_data, PRCM_REQ_MB5_I2CVAL);
