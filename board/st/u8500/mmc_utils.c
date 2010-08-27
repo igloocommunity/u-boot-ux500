@@ -65,7 +65,7 @@ static struct partition partitions_ed[] = {
 static struct partition partitions_v1[] = {
 	[0] = PART(0x83, 0x000A0000,  0x00004000),	/* Kernel */
 	[1] = PART(0x83, 0x000A4000,  0x00080000),	/* Root file system */
-	[2] = PART(0x83, 0x00124000,  0x00000800),	/* Modem parameters */
+	[2] = PART(0x83, 0x001FF800,  0x00000800),	/* Modem parameters */
 	[3] = {0},
 };
 
