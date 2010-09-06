@@ -41,6 +41,8 @@
 #define CONFIG_SYS_TIMERBASE	0xA03C6000      /* MTU0 timer */
 #endif
 
+#define CONFIG_BOOTTIME
+
 #define BOARD_LATE_INIT		1
 
 /*-----------------------------------------------------------------------
@@ -144,8 +146,11 @@
 		"console=${console}\0"					\
 	"emmcboot=echo Booting from eMMC ...; "				\
 		"run commonargs emmcargs addcons memargs;"		\
+		"boottime_tag write_partition;"				\
 		"write_partition_block;"				\
+		"boottime_tag load_kernel;"				\
 		"mmc read 0 ${loadaddr} 0xA0000 0x4000;"		\
+		"boottime_tag boot_kernel;"				\
 		"bootm ${loadaddr}\0"					\
 	"cmdfile=mmc init 1;mmc_read_cmd_file;run bootcmd\0"		\
 	"flash=mmc init 1;fatload mmc 1 ${loadaddr} flash.scr;"		\

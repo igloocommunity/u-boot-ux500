@@ -28,17 +28,47 @@ struct boottime_entry {
 	u8  name[BOOTTIME_MAX_NAME_LEN];
 };
 
-#ifdef CONFIG_BOOTTIME
+/**
+ * boottime_tag()
+ * Add a sample point with a name now. Shall be called before function "name"
+ * is executed.
+ * @name: Sample point name.
+ */
 void boottime_tag(char *name);
-void boottime_remove_last(void);
+
+/**
+ * boottime_get_entry()
+ *
+ * Loads a boottime measure point information.
+ * @i: boottime measurement point entry.
+ *
+ * Returns a boottime entry. NULL, if not existing.
+ */
 struct boottime_entry *boottime_get_entry(unsigned int i);
+
+/**
+ * boottime_idle_get()
+ *
+ * Returns the amount of time in us that has been spent idling.
+ */
 unsigned long boottime_idle_get(void);
+
+/**
+ * boottime_idle_done()
+ *
+ * Returns the total time since start in us.
+ */
 unsigned long boottime_idle_done(void);
+
+/**
+ * boottime_idle_add()
+ *
+ * This function shall be added to all delay() functions.
+ * The delay time input to delay() shall be provided to this
+ * function as well. It is used to calculate average load
+ * during boot.
+ * @time: time in us.
+ */
 void boottime_idle_add(unsigned long time);
-#else
-#define boottime_tag(x)
-#define boottime_remove_last()
-#define boottime_idle_add(x)
-#endif
 
 #endif

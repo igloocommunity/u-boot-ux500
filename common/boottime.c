@@ -23,6 +23,8 @@
 #include <asm/byteorder.h>
 #include <asm/setup.h>
 
+#ifdef CONFIG_BOOTTIME
+
 static struct tag_boottime boottime = {
 	.idle = 0,
 	.total = 0,
@@ -67,12 +69,6 @@ unsigned long boottime_idle_get(void)
 	return boottime.idle;
 }
 
-void boottime_remove_last(void)
-{
-	if (boottime.num > 0)
-		boottime.num--;
-}
-
 static int do_boottime(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	unsigned int i;
@@ -91,12 +87,60 @@ static int do_boottime(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	return 0;
 }
 
+static int do_boottime_tag (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+
+	if (argc < 2) {
+		cmd_usage(cmdtp);
+		return 1;
+	}
+	boottime_tag(argv[1]);
+
+	return 0;
+}
+
 U_BOOT_CMD(
 	boottime,	1,      1,      do_boottime,
 	"print boottime info",
 	""
 	"    - print boottime tags\n"
 );
+
+U_BOOT_CMD(
+	boottime_tag,	2,      1,      do_boottime_tag,
+	"boottime tag 'name'",
+	""
+	"    - Add a boottime tag at the current time\n"
+);
+
+#else
+/*
+ * Dummy functions when boottime is not enabled.
+ */
+static int do_boottime_tag (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	return 0;
+}
+
+void boottime_tag(char *name)
+{
+
+}
+
+void boottime_idle_add(unsigned long time)
+{
+
+}
+
+U_BOOT_CMD(
+	boottime_tag,	2,      1,      do_boottime_tag,
+	"boottime tag 'name'",
+	""
+	"    - NOT ENABLED: Add CONFIG_BOOTIME to your boards configuration"
+	" file to enable boottime.\n"
+);
+
+#endif
 
 
 
