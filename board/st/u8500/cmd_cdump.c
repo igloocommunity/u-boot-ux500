@@ -27,7 +27,7 @@ static char *crash_filename = "/cdump.elf";
 /*
  * Check ELF header
  */
-static int check_elfhdr(u32 elfhdr_addr)
+static int check_elfhdr(Elf32_Ehdr *elfhdr_addr)
 {
 	unsigned char *elfhdr = (unsigned char *) elfhdr_addr;
 
@@ -104,11 +104,11 @@ static int open_create(const char *filename)
  * Truncate note segments.
  * Return segment size.
  */
-static u32 check_proghdr(u32 *proghdr)
+static u32 check_phdr(Elf32_Phdr *proghdr)
 {
 	u32 i;
 	u32 *note;
-	Elf32_Phdr *phdr = (Elf32_Phdr *) proghdr;
+	Elf32_Phdr *phdr = proghdr;
 
 	if (phdr->p_type == PT_NOTE) {
 		/* see Linux kernel/kexec.c:append_elf_note() */
@@ -126,55 +126,95 @@ static u32 check_proghdr(u32 *proghdr)
 /*
  * Dump crash to file
  */
-static int write_elf(u32 elfhdr_addr, int fd)
+static int write_elf(Elf32_Ehdr *elfhdr_addr, int fd)
 {
-	u32 i;
-	u32 len;
-	u32 offset;
+	Elf32_Ehdr *oldhdr = elfhdr_addr;
 	Elf32_Ehdr *ehdr;
 	Elf32_Phdr *phdr;
+	u32 i;
+	u32 offset;
+	u32 tot;
+	u32 phdr_cnt;
+	u32 notes_cnt = 0;
+	u32 save;
+	u32 len;
 
-	ehdr = (Elf32_Ehdr *)elfhdr_addr;
-	/* total hdr size = elf header + pgm header size * pgm header entries */
-	offset = ehdr->e_ehsize + ehdr->e_phentsize * ehdr->e_phnum;
-	ehdr = (Elf32_Ehdr *)malloc(offset);
+	offset = oldhdr->e_ehsize + oldhdr->e_phentsize * oldhdr->e_phnum;
+	ehdr = (Elf32_Ehdr *) malloc(offset);
 	if (ehdr == NULL) {
-		printf("elf header alloc error\n");
+		debug("elf header alloc error\n");
 		return -1;
 	}
-	memcpy(ehdr, (void *)elfhdr_addr, offset);
+	memcpy(ehdr, oldhdr, offset);
 
-	/* check program headers and adjust length of segments */
-	debug("elf hdr %lx\n", (ulong) ehdr);
-	for (i = 0; i < ehdr->e_phnum; i++) {
-		phdr = (Elf32_Phdr *)
-			((char *)ehdr + ehdr->e_ehsize + ehdr->e_phentsize * i);
-
-		len = check_proghdr((u32 *)phdr);
-		debug("prog hdr %d: %lx at %x len %x adjusted to %x\n",
-				i, (ulong) phdr, phdr->p_paddr,
-				phdr->p_filesz, len);
+	/*
+	 * check program header entries and update length
+	 * for merged PT_NOTE segments
+	 */
+	tot = 0;
+	phdr_cnt = ehdr->e_phnum;
+	debug("phdr_cnt=%d\n", phdr_cnt);
+	for (i = 0; i < phdr_cnt; i++) {
+		phdr = (Elf32_Phdr *) ((char *) ehdr + ehdr->e_ehsize +
+				       i * ehdr->e_phentsize);
+		len = check_phdr(phdr);
+		debug("prog hdr %d: %x ad %x len %x adjusted to %x\n",
+		      i, (u32) phdr, phdr->p_paddr, phdr->p_filesz, len);
 		phdr->p_filesz = len;
 		phdr->p_memsz = len;
-		/* set (file) offset to segment */
-		phdr->p_offset = offset;
-		offset += len;
+		if (phdr->p_type == PT_NOTE) {	/* note segment */
+			tot += len;
+			notes_cnt++;
+		}
 	}
+	debug("Length of %d note segments: %x\n", notes_cnt, tot);
 
-	/* write elf header and program headers */
-	len = ehdr->e_ehsize + ehdr->e_phentsize * ehdr->e_phnum;
-	if (write_chunk(fd, ehdr, (size_t) len)) {
+	/*
+	 * all PT_NOTE segments have been merged into one.
+	 * Update ELF Header accordingly
+	 */
+	ehdr->e_phnum = phdr_cnt - notes_cnt + 1;
+
+	/* write elf header into file on sdcard */
+	if (write_chunk(fd, ehdr, (size_t) ehdr->e_ehsize)) {
 		free(ehdr);
 		return -1;
 	}
 
-	/* copy segment contents from SDRAM to file */
-	for (i = 0; i < ehdr->e_phnum; i++) {
-		phdr = (Elf32_Phdr *)
-			((char *)ehdr + ehdr->e_ehsize + ehdr->e_phentsize * i);
-		if (phdr->p_filesz > 0) {
+	/* write program headers into file on sdcard */
+	offset = ehdr->e_ehsize + ehdr->e_phentsize * ehdr->e_phnum;
+	debug("Write Phdr: proghdr_cnt=%d\n", phdr_cnt);
+	for (i = 0; i < phdr_cnt; i++) {
+		phdr = (Elf32_Phdr *) ((char *)ehdr + ehdr->e_ehsize +
+				       i * ehdr->e_phentsize);
+		save = phdr->p_filesz;
+		if (i == 0) {
+			phdr->p_filesz = tot;
+			phdr->p_memsz = tot;
+		} else if (phdr->p_type == PT_NOTE) /* note segment */
+			continue;
+		phdr->p_offset = offset;
+		debug("prog hdr %d: %x ad %x len %x off %x\n",
+		       i, (u32) phdr, phdr->p_paddr, phdr->p_filesz,
+		       phdr->p_offset);
+		offset += phdr->p_filesz;
+		if (write_chunk(fd, (void *) phdr, (size_t)
+				ehdr->e_phentsize)) {
+			free(ehdr);
+			return -1;
+		}
+		phdr->p_filesz = save;
+		phdr->p_memsz = save;
+	}
+
+	/* write segments into file on sdcard */
+	debug("write segments...\n");
+	for (i = 0; i < phdr_cnt; i++) {
+		phdr = (Elf32_Phdr *) ((char *) ehdr + ehdr->e_ehsize +
+				       i * ehdr->e_phentsize);
+		if (phdr->p_type > PT_NULL) {
 			if (write_big_chunk(fd, (void *) phdr->p_paddr,
-						phdr->p_filesz)) {
+							 phdr->p_filesz)) {
 				free(ehdr);
 				return -1;
 			}
@@ -188,7 +228,7 @@ static int write_elf(u32 elfhdr_addr, int fd)
 /*
  * Dump crash to file
  */
-static int dump_elf(u32 elfhdr_addr, char *filename)
+static int dump_elf(Elf32_Ehdr *elfhdr_addr, char *filename)
 {
 	int fd;
 	int rc;
@@ -260,7 +300,7 @@ static char *get_atag_cmdline(void)
 /*
  * Find out where the kdump elf header is.
  */
-static u32 get_elfhdr_addr(void)
+static Elf32_Ehdr *get_elfhdr_addr(void)
 {
 	const char elfcorehdr[] = "elfcorehdr=";
 	char *cmd;
@@ -270,16 +310,16 @@ static u32 get_elfhdr_addr(void)
 		cmd = strstr(atag_cmdline, elfcorehdr);
 		if (cmd != NULL) {
 			cmd += strlen(elfcorehdr);
-			return simple_strtoul(cmd, NULL, 16);
+			return (Elf32_Ehdr *) simple_strtoul(cmd, NULL, 16);
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 /*
  * Dump crash to file (typically FAT file on SD/MMC).
  */
-static int crashdump(u32 elfhdr_addr, char *filename)
+static int crashdump(Elf32_Ehdr *elfhdr_addr, char *filename)
 {
 	int rc;
 	block_dev_desc_t *dev_desc=NULL;
@@ -307,11 +347,11 @@ static int crashdump(u32 elfhdr_addr, char *filename)
  */
 static int do_checkcrash(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	u32 elfhdr_addr;
+	Elf32_Ehdr *elfhdr_addr;
 	int rc = -1;
 
 	elfhdr_addr = get_elfhdr_addr();
-	if (elfhdr_addr != 0)
+	if (elfhdr_addr != NULL)
 		rc = check_elfhdr(elfhdr_addr);
 	if (rc == 0) {
 		printf("crash dump elf header found. Dumping to card...\n");
@@ -319,8 +359,8 @@ static int do_checkcrash(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		setenv("bootdelay", "-1");
 		rc = crashdump(elfhdr_addr, crash_filename);
 		if (rc != 0)
-			printf("checkcrash: error writing dump from %x to %s\n",
-						elfhdr_addr, crash_filename);
+			printf("checkcrash: error writing dump from %x to %s\n"
+			       , (u32) elfhdr_addr, crash_filename);
 	}
 	return rc;
 }
