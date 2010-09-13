@@ -143,7 +143,7 @@
 		"startup_graphics=${startup_graphics}\0"		\
 	"emmcargs=setenv bootargs ${bootargs} "				\
 		"root=/dev/mmcblk0p2 "					\
-		"rootdelay=1\0"						\
+		"rootwait\0"						\
 	"addcons=setenv bootargs ${bootargs} "				\
 		"console=${console}\0"					\
 	"emmcboot=echo Booting from eMMC ...; "				\
