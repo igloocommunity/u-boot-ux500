@@ -217,6 +217,9 @@ static int do_data_transfer(struct mmc *dev,
 			    struct mmc_cmd *cmd,
 			    struct mmc_data *data)
 {
+#if (DEBUG >= DBG_LVL_INFO)
+	u32 start_time = 0;
+#endif
 	int error = MMC_DATA_TIMEOUT;
 	struct mmc_host *host = dev->priv;
 	u32 blksz = 0;
@@ -228,7 +231,7 @@ static int do_data_transfer(struct mmc *dev,
 
 #if (DEBUG >= DBG_LVL_INFO)
 	if (data->blocks > 1)
-		reset_timer();
+		start_time = (u32) get_timer_us();
 #endif
 
 	if (cpu_is_u8500v1() || u8500_is_earlydrop()) {
@@ -291,7 +294,7 @@ static int do_data_transfer(struct mmc *dev,
 
 #if (DEBUG >= DBG_LVL_INFO)
 	if (data->blocks > 1) {
-		u32 transfer_time = (u32) get_timer_us();
+		u32 transfer_time = (u32) get_timer_us() - start_time;
 		u64 throughput = lldiv((u64) 1000 * 1000 * data->blocks *
 			data->blocksize, transfer_time);
 		printf("MMC %s: %u bytes in %u [us] => %llu [B/s] = "
