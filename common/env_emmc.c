@@ -67,21 +67,6 @@ uchar env_get_char_spec (int index)
 	return ( *((uchar *)(gd->env_addr + index)) );
 }
 
-static int emmc_init(void)
-{
-	int i;
-	struct mmc *boot_dev = NULL;
-
-	for (i = 0;; i++) {
-		boot_dev = find_mmc_device(i);
-		if (!boot_dev)
-			return -1;
-		if (!strcmp(boot_dev->name, env_name_spec))
-			break;
-	}
-
-	return mmc_init(boot_dev);
-}
 static int emmc_read_write(u32 byte_offset, void *read_buffer,
 			   u32 size, u32 write)
 {
@@ -258,8 +243,6 @@ void env_relocate_spec (void)
 {
 #if !defined(ENV_IS_EMBEDDED)
 	int ret;
-
-	ret = emmc_init();
 
 	ret = emmc_read_write(CONFIG_ENV_OFFSET_START,
 			      (void *)env_ptr, CONFIG_ENV_SIZE, 0);

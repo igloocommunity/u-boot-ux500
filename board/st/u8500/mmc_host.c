@@ -21,6 +21,8 @@
 #include <malloc.h>
 #include <div64.h>
 #include "mmc_fifo.h"
+#include "itp.h"
+
 
 struct mmc_host {
 	struct sdi_registers *base;
@@ -607,6 +609,21 @@ int board_mmc_init(bd_t *bis)
 	mmc_register(dev);
 	debugX(DBG_LVL_VERBOSE, "registered emmc interface number is:%d\n",
 	      dev->block_dev.dev);
+
+
+	mmc_init(dev);
+
+	/*
+	 * In a perfect world itp_load_itp shouldn't be here but we want ITP
+	 * to be loaded as quickly as possible and putting it here will get the
+	 * shortest time to start loading ITP. Time saved by putting it here
+	 * compared to later is somewhere between 0.3-0.7s. That is enough to be
+	 * able to justify putting it here.
+	 */
+
+#ifdef CONFIG_ITP_LOAD
+	itp_load_itp(&dev->block_dev);
+#endif
 
 	dev = alloc_mmc_struct();
 	if (!dev)
