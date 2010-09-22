@@ -424,6 +424,10 @@ typedef enum {
 	GPIO_ALT_CCP1,
 	GPIO_ALT_EMMC,
 	GPIO_ALT_POP_EMMC,
+	GPIO_ALT_SPI_0,
+	GPIO_ALT_SPI_1,
+	GPIO_ALT_SPI_2,
+	GPIO_ALT_SPI_3,
 	GPIO_ALT_FUNMAX		/* Add new alt func before this */
 } gpio_alt_function;
 

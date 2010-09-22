@@ -68,6 +68,18 @@ struct gpio_altfun_data altfun_table[] = {
         GPIO_ALTF_A,},
     {.altfun = GPIO_ALT_POP_EMMC,.start = 128,.end = 138,.cont = 0,.type =
         GPIO_ALTF_A,},
+    {.altfun = GPIO_ALT_SPI_0,.start = 220,.end = 220,.cont = 1,.type =
+        GPIO_ALTF_C,},
+    {.altfun = GPIO_ALT_SPI_0,.start = 223,.end = 225,.cont = 0,.type =
+        GPIO_ALTF_C,},
+    {.altfun = GPIO_ALT_SPI_1,.start = 209,.end = 209,.cont = 1,.type =
+        GPIO_ALTF_B,},
+    {.altfun = GPIO_ALT_SPI_1,.start = 212,.end = 214,.cont = 0,.type =
+        GPIO_ALTF_B,},
+    {.altfun = GPIO_ALT_SPI_2,.start = 215,.end = 218,.cont = 0,.type =
+        GPIO_ALTF_C,},
+    {.altfun = GPIO_ALT_SPI_3,.start = 29,.end = 32,.cont = 0,.type =
+        GPIO_ALTF_B,},
 };
 
 /*

@@ -375,6 +375,8 @@ typedef enum {
 	GPIO_ALT_UART_2,
 	GPIO_ALT_I2C_0,
 	GPIO_ALT_I2C_1,
+	GPIO_ALT_I2C_2,
+	GPIO_ALT_I2C_3,
 	GPIO_ALT_MSP_0,
 	GPIO_ALT_MSP_1,
 	GPIO_ALT_MSP_2,
@@ -421,9 +423,11 @@ typedef enum {
 	GPIO_ALT_CAM,
 	GPIO_ALT_CCP1,
 	GPIO_ALT_EMMC,
-#ifdef CONFIG_NOMADIK_8500_V1
 	GPIO_ALT_POP_EMMC,
-#endif
+	GPIO_ALT_SPI_0,
+	GPIO_ALT_SPI_1,
+	GPIO_ALT_SPI_2,
+	GPIO_ALT_SPI_3,
 	GPIO_ALT_FUNMAX		/* Add new alt func before this */
 } gpio_alt_function;
 
@@ -503,8 +507,8 @@ typedef struct {
  * refer ./Documentation/arm/STM-Nomadik/gpio_user_guide.txt
  *----------------------------------------------------------------------*/
 
-extern int gpio_setpinconfig(gpio_pin pin_id, gpio_config * pin_config);
-extern int gpio_resetpinconfig(gpio_pin pin_id, char *dev_name);
+extern gpio_error gpio_setpinconfig(gpio_pin pin_id, gpio_config * pin_config);
+extern gpio_error gpio_resetpinconfig(gpio_pin pin_id, char *dev_name);
 extern int gpio_writepin(gpio_pin pin_id, gpio_data value, char *dev_name);
 extern int gpio_readpin(gpio_pin pin_id, gpio_data * value);
 extern int gpio_altfuncenable(gpio_alt_function altfunc,

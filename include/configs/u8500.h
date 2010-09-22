@@ -111,6 +111,7 @@
 #define CONFIG_CMD_I2C
 #define CONFIG_CMD_TOC
 #define CONFIG_CMD_SETEXPR	/* used to convert $filesize to $blocksize */
+#define CONFIG_CMD_SPI
 
 #ifdef CONFIG_USB_TTY
 #define CONFIG_BOOTDELAY	-1	/* disable autoboot */
@@ -219,6 +220,13 @@
 
 #define CONFIG_SYS_I2C_GPIOE_ADDR	0x42	/* GPIO expander chip addr */
 #define CONFIG_TC35892_GPIO
+
+/*
+ * SPI
+ */
+#define CONFIG_U8500_SPI
+
+
 /*-----------------------------------------------------------------------
  * Stack sizes
  *
