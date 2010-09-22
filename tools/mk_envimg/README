@@ -1,0 +1,30 @@
+
+This is a small tool that creates an environment image for U-boot.
+It can be compiled both as a part of U-boot (using host compiler) and
+stand alone. The tool is intended to run on the host and not the target.
+
+Syntax:
+./mk_envimg [-d] output_file [input_file]
+
+When invoking the program, input arguments can be specified.
+* -d          : debug mode, adds debug printouts
+* output_file : specify the name and location of the outpout
+* input_file  : input configuration file (optional)
+
+The output file is an ordinary environment binary with a crc32 sum
+followed by the environment variables
+
+By default this tool will create an image with the default environment
+variables as built-in in U-boot.
+If an input file is specified it will remove, modify and/or remove
+default environment variables.
+
+Input file examples:
+* Add a new variable:
+an_new_variable=a_new_value
+
+* Remove the variable bootargs
+bootargs
+
+* Modify the variable bootargs
+bootargs=a_new_value
