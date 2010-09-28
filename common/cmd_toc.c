@@ -58,6 +58,8 @@ int do_toc_entry_load(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	u32 size;
 	u32 addr;
 	char loadaddr[16];
+	char size_buf[16];
+	char offset_buf[16];
 	block_dev_desc_t *dev_desc;
 	int blks;
 	char *ep;
@@ -99,6 +101,11 @@ int do_toc_entry_load(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		sprintf(loadaddr, "0x%x", addr);
 		setenv("loadaddr", loadaddr);
 
+		sprintf(size_buf, "0x%x", size);
+		setenv("tocentrysize", size_buf);
+
+		sprintf(offset_buf, "0x%x", offset);
+		setenv("tocentryoffset", offset_buf);
 		return 0;
 	} else
 			printf("Failed to get TOC entry!\n");

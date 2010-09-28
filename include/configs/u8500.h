@@ -84,6 +84,7 @@
 #define CONFIG_MMC		1
 #define CONFIG_GENERIC_MMC	1
 #define CONFIG_DOS_PARTITION	1
+#define CONFIG_TOC_PARTITION	1
 #define CONFIG_ROCKBOX_FAT	1
 #define CONFIG_U_BOOT		1 /* needed by Rockbox code */
 #define CONFIG_SUPPORT_VFAT	1 /* Rockbox */
@@ -108,6 +109,7 @@
 #define CONFIG_CMD_EMMC
 #define CONFIG_CMD_SOURCE
 #define CONFIG_CMD_I2C
+#define CONFIG_CMD_TOC
 
 #ifdef CONFIG_USB_TTY
 #define CONFIG_BOOTDELAY	-1	/* disable autoboot */

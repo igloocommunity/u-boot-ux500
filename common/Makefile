@@ -153,7 +153,7 @@ endif
 COBJS-$(CONFIG_CMD_XIMG) += cmd_ximg.o
 COBJS-$(CONFIG_YAFFS2) += cmd_yaffs2.o
 COBJS-$(CONFIG_VFD) += cmd_vfd.o
-COBJS-$(CONFIG_TOC_PARTITION) += cmd_toc.o
+COBJS-$(CONFIG_CMD_TOC) += cmd_toc.o
 
 # others
 COBJS-$(CONFIG_DDR_SPD) += ddr_spd.o
