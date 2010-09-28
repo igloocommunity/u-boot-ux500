@@ -337,22 +337,20 @@ file_fat_read(const char *filename, void *buffer, unsigned long maxsize)
 		return -1;
 	}
 
+	file_size = filesize(fd);
+	if (file_size < 0) {
+		fat_eprintf("Call to filesize() failed\n");
+		return -1;
+	}
+
 	/*
 	 * If the number of bytes to read is zero, read the entire file.
 	 */
-	if (maxsize == 0) {
-		file_size = filesize(fd);
-		if (file_size < 0) {
-			fat_eprintf("Call to filesize() failed\n");
-			return -1;
-		}
+	if ((maxsize != 0) && (maxsize < file_size))
+		file_size = maxsize;
 
-		maxsize = (unsigned long) file_size;
-		fat_dprintf("Reading entire file (%lu bytes)\n", maxsize);
-	}
-
-	bytes = (long) read(fd, buffer, (size_t) maxsize);
-	if ((unsigned long) bytes != maxsize) {
+	bytes = (long) read(fd, buffer, (size_t) file_size);
+	if ((unsigned long) bytes != file_size) {
 #ifdef CONFIG_STRERROR
 		fprintf(stderr, "Read error: %s\n", strerror(errno));
 #endif

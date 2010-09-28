@@ -140,13 +140,24 @@ static int mmc_read_cmd_file(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	long sz;
 	char mmc_cmdbuffer[1024];
-
+	struct mmc *mmc_dev;
 	(void) cmdtp;  /* Parameter not used! */
 	(void) flag; /* Parameter not used! */
 	(void) argc; /* Parameter not used! */
 	(void) argv; /* Parameter not used! */
 
-	sz = file_fat_read("command.txt", &mmc_cmdbuffer,
+	mmc_dev = find_mmc_device(CONFIG_MMC_DEV_NUM);
+	if (mmc_dev == NULL) {
+		printf("mmc_read_cmd_file: find_mmc_device failed\n");
+		return 1;
+	}
+
+	if (fat_register_device(&mmc_dev->block_dev, 1) != 0) {
+		printf("mmc_read_cmd_file: fat_register_device failed\n");
+		return 1;
+	}
+
+	sz = file_fat_read("/command.txt", &mmc_cmdbuffer,
 			   sizeof(mmc_cmdbuffer) - 1);
 	if (sz == -1) {
 		printf("No command.txt found in the MMC/SD card\n");
@@ -160,7 +171,7 @@ static int mmc_read_cmd_file(cmd_tbl_t *cmdtp, int flag, int argc,
 
 U_BOOT_CMD(
 	mmc_read_cmd_file, 1, 0, mmc_read_cmd_file,
-	"- setup bootcmd env by reading command.txt file from MMC/SD card\n",
+	"setup bootcmd env from command.txt on SD",
 	NULL
 );
 #endif
