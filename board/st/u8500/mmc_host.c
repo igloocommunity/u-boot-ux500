@@ -625,7 +625,7 @@ int board_mmc_init(bd_t *bis)
 	 */
 
 #ifdef CONFIG_ITP_LOAD
-	itp_load_itp(&dev->block_dev);
+	itp_load_itp_and_modem(&dev->block_dev);
 #endif
 
 	dev = alloc_mmc_struct();

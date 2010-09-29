@@ -16,9 +16,11 @@
 #define ITP_LOAD_ITP		0x04
 
 #define ITP_TOC_ITP_NAME	"ITP"
+#define ITP_TOC_MODEM_NAME	"MODEM"
+#define ITP_TOC_IPL_NAME	"IPL"
 
 #define ITP_CSPSA_KEY		0
 
-int itp_load_itp(block_dev_desc_t *block_dev);
+int itp_load_itp_and_modem(block_dev_desc_t *block_dev);
 
 #endif	/* __ITP_H__ */
