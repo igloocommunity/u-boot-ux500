@@ -28,7 +28,7 @@ HEADERS	:= mk_env_img.h
 
 .PHONY: all
 
-all:	$(obj)mk_envimg create_envimg
+all:	create_envimg
 
 $(obj)mk_envimg:	$(SRCS) $(HEADERS)
 	$(HOSTCC) -g -I$(SRCTREE)/include -DUSE_HOSTCC $(SRCS) -o $(obj)mk_envimg
@@ -39,7 +39,7 @@ clean:
 $(obj)crc32.c:
 	ln -s $(SRCTREE)/lib_generic/crc32.c $(obj)crc32.c
 
-create_envimg:
+create_envimg:	$(obj)mk_envimg
 	$(obj)mk_envimg $(OUTPUT) $(INPUT)
 
 #########################################################################
