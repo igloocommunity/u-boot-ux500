@@ -21,7 +21,6 @@
 #include <malloc.h>
 #include <div64.h>
 #include "mmc_fifo.h"
-#include "itp.h"
 
 
 struct mmc_host {
@@ -617,16 +616,14 @@ int board_mmc_init(bd_t *bis)
 	mmc_init(dev);
 
 	/*
-	 * In a perfect world itp_load_itp shouldn't be here but we want ITP
-	 * to be loaded as quickly as possible and putting it here will get the
-	 * shortest time to start loading ITP. Time saved by putting it here
-	 * compared to later is somewhere between 0.3-0.7s. That is enough to be
-	 * able to justify putting it here.
+	 * In a perfect world board_early_access shouldn't be here but we want
+	 * some functionality to be loaded as quickly as possible and putting it
+	 * here will get the shortest time to start that functionality. Time
+	 * saved by putting it here compared to later is somewhere between
+	 * 0.3-0.7s. That is enough to be able to justify putting it here.
 	 */
 
-#ifdef CONFIG_ITP_LOAD
-	itp_load_itp_and_modem(&dev->block_dev);
-#endif
+	board_early_access(&dev->block_dev);
 
 	dev = alloc_mmc_struct();
 	if (!dev)

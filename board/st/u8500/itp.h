@@ -21,6 +21,8 @@
 
 #define ITP_CSPSA_KEY		0
 
+int itp_is_itp_in_config(void);
+int itp_read_config(block_dev_desc_t *block_dev);
 int itp_load_itp_and_modem(block_dev_desc_t *block_dev);
 
 #endif	/* __ITP_H__ */

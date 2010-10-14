@@ -36,6 +36,8 @@ static const struct sec_rom_cut_desc cuttable[] = {
 	{ 0x9001DBF4, 0x008500B0, 0x90017300 },
 };
 
+static u32 cspsa_key;
+
 static u32 itp_call_secure_service(const u32 serviceid,
 				   const u32 secureconfig,
 				   ...)
@@ -123,6 +125,7 @@ static int itp_load_ipl(block_dev_desc_t *block_dev)
 
 	return 0;
 }
+
 static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 			      const char *partname,
 			      u32 *loadaddress)
@@ -155,28 +158,35 @@ static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 	return 0;
 }
 
+int itp_read_config(block_dev_desc_t *block_dev)
+{
+	if (cspsa_fp_read(block_dev,
+			  ITP_CSPSA_KEY,
+			  &cspsa_key)) {
+		printf("itp_load_itp_and_modem: cspsa_fp_read failed\n");
+		cspsa_key = 0;
+		return 1;
+	}
+	return 0;
+}
+
+int itp_is_itp_in_config(void)
+{
+	return cspsa_key & ITP_LOAD_ITP;
+}
+
 /*
  * itp_load_itp_and_modem - Loads itp and modem depending on config.
  * If itp is loaded ok it will be executed and u-boot execution will stop
  */
-
 int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 {
 	int retval = 0;
-	u32 cspsa_key;
 	void (*loadaddress)(void) = NULL;
 
 	debug("\nitp_load_itp_and_modem\n");
 
 	if (itp_init_bridge()) {
-		retval = 1;
-		goto exit;
-	}
-
-	if (cspsa_fp_read(block_dev,
-			  ITP_CSPSA_KEY,
-			  &cspsa_key)) {
-		printf("itp_load_itp_and_modem: cspsa_fp_read failed\n");
 		retval = 1;
 		goto exit;
 	}

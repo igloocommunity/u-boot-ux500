@@ -134,4 +134,5 @@ int cpu_is_u8500v11(void);
 int cpu_is_u8500v1(void);
 int cpu_is_u8500v2(void);
 
+int board_early_access(block_dev_desc_t *block_dev);
 #endif  /* _COMMON_H_ */

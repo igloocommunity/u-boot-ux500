@@ -15,6 +15,7 @@
 #include <asm/arch/ab8500.h>
 #include <tc35892.h>
 #include "gpio.h"
+#include "itp.h"
 
 #include "common.h"
 #ifdef CONFIG_VIDEO_LOGO
@@ -68,6 +69,10 @@
 
 int board_id;	/* set in board_late_init() */
 int errno;
+
+#ifdef CONFIG_VIDEO_LOGO
+static int mcde_error;
+#endif
 
 /*
  * Flag to indicate from where to where we have to copy the initialised data.
@@ -269,10 +274,12 @@ int dram_init(void)
 }
 
 #ifdef CONFIG_VIDEO_LOGO
-int dss_init(void)
+static int dss_init(void)
 {
-	uchar byte;
-	puts("MCDE:  ");
+	puts("\nMCDE:  ");
+
+	boottime_tag("splash");
+
 	if (!cpu_is_u8500v11() && !cpu_is_u8500v2()) {
 		printf("Only HREF+ or V2 is supported\n");
 		goto mcde_error;
@@ -287,18 +294,43 @@ int dss_init(void)
 	}
 
 	printf("ready\n");
-	setenv("startup_graphics", "1");
-	setenv("logo", "nologo");
 	return 0;
 
 mcde_error:
-	setenv("startup_graphics", "0");
-	setenv("logo", "0");
-
 	return -EINVAL;
 
 }
 #endif
+
+
+/*
+ * board_early_access - for functionality that needs to run before
+ * board_late_init but after board_init and emmc init.
+ */
+int board_early_access(block_dev_desc_t *block_dev)
+{
+
+#ifdef CONFIG_ITP_LOAD
+	itp_read_config(block_dev);
+#endif
+
+#ifdef CONFIG_VIDEO_LOGO
+	/* only load splash if not itp */
+#ifdef CONFIG_ITP_LOAD
+	if (!itp_is_itp_in_config())
+		mcde_error = dss_init();
+#else
+	mcde_error = dss_init();
+#endif
+#endif
+
+#ifdef CONFIG_ITP_LOAD
+	if (itp_load_itp_and_modem(block_dev))
+		return 1;
+#endif
+
+	return 0;
+}
 
 unsigned int addr_vall_arr[] = {
 0x8011F000, 0x0000FFFF, // Clocks for HSI  TODO Enable reqd only
@@ -463,8 +495,13 @@ int board_late_init(void)
 	}
 #endif /* CONFIG_MMC */
 #ifdef CONFIG_VIDEO_LOGO
-	boottime_tag("splash");
-	dss_init();
+	if (mcde_error) {
+		setenv("startup_graphics", "0");
+		setenv("logo", "0");
+	} else {
+		setenv("startup_graphics", "1");
+		setenv("logo", "nologo");
+	}
 #endif
 	/*
 	 * Create a memargs variable which points uses either the memargs256 or
