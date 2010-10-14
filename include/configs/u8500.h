@@ -132,8 +132,8 @@
 	"console=ttyAMA2,115200n8\0"					\
 	"memargs256=mem=96M@0 mem_modem=32M@96M mem=32M@128M "		\
 		"hwmem=22M@160M pmem_hwb=42M@182M mem_mali=32@224M\0"	\
-	"memargs512=mem=96M@0 mem_modem=32M@96M mem=40M@128M "		\
-		"hwmem=28M@172M mem=24M@200M mem_mali=32M@224M "		\
+	"memargs512=mem=96M@0 mem_modem=32M@96M hwmem=32M@128M "	\
+		"mem=64M@160M mem_mali=32M@224M "			\
 		"pmem_hwb=64M@256M mem=192M@320M\0"			\
 	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
 		"init=init "						\
