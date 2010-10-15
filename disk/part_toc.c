@@ -509,3 +509,71 @@ int get_entry_info_toc(block_dev_desc_t *dev_desc, const char *toc_id,
 	}
 	return 1;
 }
+
+/*
+ * toc_load_toc_entry - Loads data from the specified toc partition
+ *
+ * @param [in] dev_desc Pointer to block device.
+ * @param [in] toc_id Name of toc partition.
+ * @param [in] offset Offset into toc partition (in bytes).
+ * @param [in] size Size of data to read (in bytes). If 0 entire toc partion
+ *		    will be loaded.
+ * @param [in] loadaddr Destination address for loaded data. If 0 then address
+ *			from toc will be used.
+ * @return Returns 0 on success, 1 on fail.
+ */
+int toc_load_toc_entry(block_dev_desc_t *dev_desc, const char *toc_id,
+		       u32 offset, u32 size, u32 loadaddr)
+{
+	u32 entry_offset;
+	u32 entry_size;
+	u32 entry_loadaddr;
+	u32 n;
+
+	debug("toc_load_toc_entry: Loading %s\n", toc_id);
+
+	if (size % SUPPORTED_SECTOR_SIZE) {
+		printf("toc_load_toc_entry: only sizes of multiple of %d is "
+		       "supported\n", SUPPORTED_SECTOR_SIZE);
+		return 1;
+	}
+
+	if (offset % SUPPORTED_SECTOR_SIZE) {
+		printf("toc_load_toc_entry: only offsets of multiple of %d is "
+		       "supported\n", SUPPORTED_SECTOR_SIZE);
+		return 1;
+	}
+
+	if (get_entry_info_toc(dev_desc, toc_id, &entry_offset,
+			       &entry_size, &entry_loadaddr)) {
+		printf("toc_load_toc_entry: get_entry_info_toc failed\n");
+		return 1;
+	}
+
+	entry_offset += offset;
+
+	if ((size < entry_size) && (size != 0))
+		entry_size = size;
+
+	if (loadaddr != 0)
+		entry_loadaddr = loadaddr;
+
+	entry_size = (entry_size / dev_desc->blksz) +
+	       ((entry_size % dev_desc->blksz) ? 1 : 0);
+
+	debug("toc_load_toc_entry: entry_offset:0x%X entry_size:%d "
+	      "entry_loadaddr:0x%X\n", entry_offset, entry_size,
+	      entry_loadaddr);
+
+	n = dev_desc->block_read(dev_desc->dev,
+				 entry_offset / dev_desc->blksz,
+				 entry_size,
+				 (void *)entry_loadaddr);
+
+	if (n != entry_size) {
+		printf("toc_load_toc_entry: Failed to load %s!\n", toc_id);
+		return 1;
+	}
+
+	return 0;
+}

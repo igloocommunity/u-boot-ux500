@@ -152,6 +152,8 @@ void print_part_toc (block_dev_desc_t *dev_desc);
 int   test_part_toc (block_dev_desc_t *dev_desc);
 int get_entry_info_toc(block_dev_desc_t *dev_desc, const char *toc_id,
 		       u32 *offset, u32 *size, u32 *loadaddr);
+int toc_load_toc_entry(block_dev_desc_t *dev_desc, const char *toc_id,
+		       u32 offset, u32 size, u32 loadaddr);
 #endif
 
 #endif /* _PART_H */
