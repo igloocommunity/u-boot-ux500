@@ -20,13 +20,8 @@
 #include <linux/err.h>
 #include <asm/arch/ab8500.h>
 #include "common.h"
-
-
-#ifdef CONFIG_SYS_VIDEO_USE_GIMP_HEADER
-#include <asm/arch/mcde_video_logo_gimp.h>
-#else
-#include <asm/arch/mcde_video_logo.h>
-#endif
+#include <part.h>
+#include <mmc.h>
 
 #define DEBUG 0
 #define dbg_printk(format, arg...)			\
@@ -327,6 +322,9 @@ int mcde_display_image(void)
 	u32 xpos = 0;
 	u32 ypos = 0;
 	int ret;
+	struct mmc *emmc_dev;
+	u32 address = CONFIG_SYS_VIDEO_FB_ADRS;
+
 #ifdef CONFIG_SYS_VIDEO_USE_GIMP_HEADER
 	u32	i = 0;
 	u8 	pixels[3];
@@ -339,6 +337,18 @@ int mcde_display_image(void)
 		ret = PTR_ERR(ovly);
 		printf("Failed to get channel\n");
 		return -ret;
+	}
+
+	emmc_dev = find_mmc_device(CONFIG_EMMC_DEV_NUM);
+	if (emmc_dev == NULL) {
+		printf("mcde_display_image: emmc not found.\n");
+		return 1;
+	}
+
+	if (toc_load_toc_entry(&emmc_dev->block_dev, MCDE_TOC_SPLASH_NAME, 0,
+			       0, address)) {
+		printf("mcde_display_image: no splash image found.\n");
+		return 1;
 	}
 
 #ifdef CONFIG_SYS_VIDEO_USE_GIMP_HEADER
@@ -354,7 +364,7 @@ int mcde_display_image(void)
 	}
 	mcde_ovly_set_source_buf(ovly, CONFIG_SYS_VIDEO_FB_ADRS);
 #else
-	mcde_ovly_set_source_buf(ovly, (u32)&mcde_video_logo[0]);
+	mcde_ovly_set_source_buf(ovly, (u32)address);
 #endif
 	mcde_ovly_set_source_info(ovly, (MCDE_VIDEO_LOGO_WIDTH*2),
 					main_display.default_pixel_format);
