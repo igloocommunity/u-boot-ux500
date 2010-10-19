@@ -311,6 +311,8 @@ int mcde_startup(void)
 	mcde_chnl_set_pixel_format(chnl, main_display.port_pixel_format);
 	mcde_chnl_apply(chnl);
 
+	return ret;
+
 display_power_mode_failed:
 get_chnl_failed:
 display_power_failed:

@@ -874,6 +874,8 @@ int mcde_init(u8 num_data_lanes)
 
 void mcde_exit(void)
 {
-	if (dsiio)
+	if (dsiio) {
 		free(dsiio);
+		dsiio = NULL;
+	}
 }
