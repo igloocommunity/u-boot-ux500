@@ -17,10 +17,14 @@
 #include <asm/arch/ab8500.h>
 #include <asm/arch/prcmu.h>
 #include <tc35892.h>
-#include <asm/arch/gpio.h>
 #include "itp.h"
 
 #include <asm/arch/common.h>
+
+#include "db8500_pincfg.h"
+#include "db8500_pins.h"
+
+
 #ifdef CONFIG_VIDEO_LOGO
 #include "mcde_display.h"
 #endif
@@ -33,6 +37,90 @@
  */
 #define DMC_BASE_ADDR			0x80156000
 #define DMC_CTL_97			(DMC_BASE_ADDR + 0x184)
+
+/*
+ * GPIO pin config for MOP500 board
+ */
+pin_cfg_t gpio_cfg[] = {
+	/* I2C */
+	GPIO147_I2C0_SCL,
+	GPIO148_I2C0_SDA,
+	GPIO16_I2C1_SCL,
+	GPIO17_I2C1_SDA,
+	GPIO10_I2C2_SDA,
+	GPIO11_I2C2_SCL,
+	GPIO229_I2C3_SDA,
+	GPIO230_I2C3_SCL,
+
+	/* SSP0, to AB8500 */
+	GPIO143_SSP0_CLK,
+	GPIO144_SSP0_FRM,
+	GPIO145_SSP0_RXD | PIN_PULL_DOWN,
+	GPIO146_SSP0_TXD,
+
+	/* MMC0 (MicroSD card) */
+	GPIO18_MC0_CMDDIR	| PIN_OUTPUT_HIGH,
+	GPIO19_MC0_DAT0DIR	| PIN_OUTPUT_HIGH,
+	GPIO20_MC0_DAT2DIR	| PIN_OUTPUT_HIGH,
+	GPIO21_MC0_DAT31DIR	| PIN_OUTPUT_HIGH,
+	GPIO22_MC0_FBCLK	| PIN_INPUT_NOPULL,
+	GPIO23_MC0_CLK		| PIN_OUTPUT_LOW,
+	GPIO24_MC0_CMD		| PIN_INPUT_PULLUP,
+	GPIO25_MC0_DAT0		| PIN_INPUT_PULLUP,
+	GPIO26_MC0_DAT1		| PIN_INPUT_PULLUP,
+	GPIO27_MC0_DAT2		| PIN_INPUT_PULLUP,
+	GPIO28_MC0_DAT3		| PIN_INPUT_PULLUP,
+
+	/* MMC2 (POP eMMC) */
+	GPIO128_MC2_CLK		| PIN_OUTPUT_LOW,
+	GPIO129_MC2_CMD		| PIN_INPUT_PULLUP,
+	GPIO130_MC2_FBCLK	| PIN_INPUT_NOPULL,
+	GPIO131_MC2_DAT0	| PIN_INPUT_PULLUP,
+	GPIO132_MC2_DAT1	| PIN_INPUT_PULLUP,
+	GPIO133_MC2_DAT2	| PIN_INPUT_PULLUP,
+	GPIO134_MC2_DAT3	| PIN_INPUT_PULLUP,
+	GPIO135_MC2_DAT4	| PIN_INPUT_PULLUP,
+	GPIO136_MC2_DAT5	| PIN_INPUT_PULLUP,
+	GPIO137_MC2_DAT6	| PIN_INPUT_PULLUP,
+	GPIO138_MC2_DAT7	| PIN_INPUT_PULLUP,
+
+	/* MMC4 (On-board eMMC) */
+	GPIO197_MC4_DAT3	| PIN_INPUT_PULLUP,
+	GPIO198_MC4_DAT2	| PIN_INPUT_PULLUP,
+	GPIO199_MC4_DAT1	| PIN_INPUT_PULLUP,
+	GPIO200_MC4_DAT0	| PIN_INPUT_PULLUP,
+	GPIO201_MC4_CMD		| PIN_INPUT_PULLUP,
+	GPIO202_MC4_FBCLK	| PIN_INPUT_NOPULL,
+	GPIO203_MC4_CLK		| PIN_OUTPUT_LOW,
+	GPIO204_MC4_DAT7	| PIN_INPUT_PULLUP,
+	GPIO205_MC4_DAT6	| PIN_INPUT_PULLUP,
+	GPIO206_MC4_DAT5	| PIN_INPUT_PULLUP,
+	GPIO207_MC4_DAT4	| PIN_INPUT_PULLUP,
+
+	/* UART2, console */
+	GPIO29_U2_RXD	| PIN_INPUT_PULLUP,
+	GPIO30_U2_TXD	| PIN_OUTPUT_HIGH,
+	GPIO31_U2_CTSn	| PIN_INPUT_PULLUP,
+	GPIO32_U2_RTSn	| PIN_OUTPUT_HIGH,
+
+	/*
+	 * USB, pin 256-267 USB, Is probably already setup correctly from
+	 * BootROM/boot stages, but we don't trust that and set it up anyway
+	 */
+	GPIO256_USB_NXT,
+	GPIO257_USB_STP,
+	GPIO258_USB_XCLK,
+	GPIO259_USB_DIR,
+	GPIO260_USB_DAT7,
+	GPIO261_USB_DAT6,
+	GPIO262_USB_DAT5,
+	GPIO263_USB_DAT4,
+	GPIO264_USB_DAT3,
+	GPIO265_USB_DAT2,
+	GPIO266_USB_DAT1,
+	GPIO267_USB_DAT0,
+};
+
 
 int board_id;	/* set in board_late_init() */
 int errno;
@@ -98,8 +186,8 @@ int board_init(void)
 	gd->bd->bi_arch_number = MACH_TYPE_U8500;
 	gd->bd->bi_boot_params = 0x00000100;
 
-	gpio_init();
-	config_gpio();
+	/* Configure GPIO pins needed by U-boot */
+	db8500_gpio_config_pins(gpio_cfg, ARRAY_SIZE(gpio_cfg));
 
 	return 0;
 }
@@ -376,42 +464,3 @@ int board_late_init(void)
 	return (0);
 }
 #endif /* BOARD_LATE_INIT */
-
-static void config_gpio(void)
-{
-		{
-			/* UART2: 29, 30 */
-			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
-			p_gpio_register -> gpio_dats |= 0x60000000;
-			p_gpio_register -> gpio_pdis &= ~0x60000000;
-		}
-		gpio_altfuncenable(GPIO_ALT_UART_2, "UART2");
-
-		{
-			/* 197 - 207 */
-			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_6_BASE);
-			p_gpio_register -> gpio_dats |= 0x0000ffe0;
-			p_gpio_register -> gpio_pdis &= ~0x0000ffe0;
-		}
-		gpio_altfuncenable(GPIO_ALT_EMMC, "EMMC");
-
-		{
-			/* 18 - 28 */
-			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
-			// p_gpio_register -> gpio_dats |= 0x0ffc0000;
-			p_gpio_register -> gpio_pdis &= ~0x0ffc0000;
-		}
-		gpio_altfuncenable(GPIO_ALT_SD_CARD0, "SDCARD");
-
-		if (!u8500_is_earlydrop()) {
-			{
-				/* 128 - 138 */
-				struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_4_BASE);
-				p_gpio_register -> gpio_dats |= 0x000007ff;
-				p_gpio_register -> gpio_pdis &= ~0x000007ff;
-			}
-
-			gpio_altfuncenable(GPIO_ALT_POP_EMMC, "EMMC");
-		}
-}
-

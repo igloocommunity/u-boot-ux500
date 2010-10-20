@@ -13,7 +13,6 @@
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/hardware.h>
-#include <asm/arch/gpio.h>
 #include <spi.h>
 
 
@@ -357,9 +356,6 @@ int spi_claim_bus(struct spi_slave *slave)
 {
 	struct stm_spi_slave *sss = to_stm_spi_slave(slave);
 	int ret = 0;
-	gpio_config pin_config;
-	gpio_pin clk_pin, frm_pin, txd_pin, rxd_pin;
-	gpio_alt_function altfunc;
 
 	pr_dbg("slave 0x%p", slave);
 
@@ -372,31 +368,16 @@ int spi_claim_bus(struct spi_slave *slave)
 	switch (sss->slave.bus) {
 #if defined(SPI_0_BASE) && defined(CONFIG_U8500)
 	case 0:
-		altfunc = GPIO_ALT_SPI_0;
-		clk_pin = GPIO_PIN_220;
-		frm_pin = GPIO_PIN_223;
-		txd_pin = GPIO_PIN_224;
-		rxd_pin = GPIO_PIN_225;
 		u8500_clock_enable(2, 8, -1);
 		break;
 #endif
 #if defined(SPI_1_BASE) && defined(CONFIG_U8500)
 	case 1:
-		altfunc = GPIO_ALT_SPI_1;
-		clk_pin = GPIO_PIN_209;
-		frm_pin = GPIO_PIN_212;
-		txd_pin = GPIO_PIN_213;
-		rxd_pin = GPIO_PIN_214;
 		u8500_clock_enable(2, 2, -1);
 		break;
 #endif
 #if defined(SPI_2_BASE) && defined(CONFIG_U8500)
 	case 2:
-		altfunc = GPIO_ALT_SPI_2;
-		clk_pin = GPIO_PIN_217;
-		frm_pin = GPIO_PIN_216;
-		txd_pin = GPIO_PIN_215;
-		rxd_pin = GPIO_PIN_218;
 		u8500_clock_enable(2, 1, -1);
 
 		/*
@@ -412,11 +393,6 @@ int spi_claim_bus(struct spi_slave *slave)
 #endif
 #if defined(SPI_3_BASE) && defined(CONFIG_U8500)
 	case 3:
-		altfunc = GPIO_ALT_SPI_3;
-		clk_pin = GPIO_PIN_29;
-		frm_pin = GPIO_PIN_31;
-		txd_pin = GPIO_PIN_32;
-		rxd_pin = GPIO_PIN_30;
 		u8500_clock_enable(1, 7, -1);
 		break;
 #endif
@@ -447,57 +423,9 @@ int spi_claim_bus(struct spi_slave *slave)
 
 
 	/*
-	 * 3. Program the GPIO on which SPI port signals are attached to
-	 *    deliver the SPI signals by setting bits alternate function
-	 *    enable GPIO_AFSLAx = 1b in GPIO register.
-	 *
-	 *    First the GPIO's are configured in software mode so
-	 *    the pull-up/pull-down configuration is correctly applied.
-	 *    After that pins are set to the correct alternate mode.
+	 * 3. Program the GPIO on which SPI port signals are attached to.
+	 * This should already be done by the Board GPIO setup
 	 */
-	pin_config.dev_name =	"SPI_CLK";
-	pin_config.direction =	GPIO_DIR_OUTPUT;
-	pin_config.mode =	GPIO_MODE_SOFTWARE;
-	pin_config.trig =	GPIO_TRIG_DISABLE;
-	ret = gpio_setpinconfig(clk_pin, &pin_config);
-	if (ret != 0) {
-		pr_err("Error %i when configuring '%s' (pin %i) for '%s'",
-			ret, pin_config.dev_name, clk_pin, sss->dev_name);
-		return ret;
-	}
-
-	pin_config.dev_name = "SPI_FRM";
-	ret = gpio_setpinconfig(frm_pin, &pin_config);
-	if (ret != 0) {
-		pr_err("Error %i when configuring '%s' (pin %i) for '%s'",
-			ret, pin_config.dev_name, frm_pin, sss->dev_name);
-		return ret;
-	}
-
-	pin_config.dev_name = "SPI_TXD";
-	ret = gpio_setpinconfig(txd_pin, &pin_config);
-	if (ret != 0) {
-		pr_err("Error %i when configuring '%s' (pin %i) for '%s'",
-			ret, pin_config.dev_name, txd_pin, sss->dev_name);
-		return ret;
-	}
-
-	pin_config.dev_name = "SPI_RXD";
-	pin_config.direction = GPIO_DIR_INPUT;
-	ret = gpio_setpinconfig(rxd_pin, &pin_config);
-	if (ret != 0) {
-		pr_err("Error %i when configuring '%s' (pin %i) for '%s'",
-			ret, pin_config.dev_name, rxd_pin, sss->dev_name);
-		return ret;
-	}
-
-	ret = gpio_altfuncenable(altfunc, sss->dev_name);
-	if (ret != 0) {
-		pr_err("Error %i when configuring '%s' to %i",
-			ret, sss->dev_name, altfunc);
-		return ret;
-	}
-
 
 	/*
 	 * 4. Program the SPI clock prescale register, SPI_CPSR,

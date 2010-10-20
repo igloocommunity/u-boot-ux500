@@ -14,10 +14,10 @@
 #define DBG_LVL_INFO	(1)
 #define DBG_LVL_VERBOSE	(2)
 
+#include <asm/io.h>
 #include <asm/arch/common.h>
 #include <asm/arch/cpu.h>
 #include <mmc.h>
-#include <asm/arch/gpio.h>
 #include "mmc_host.h"
 #include <malloc.h>
 #include <div64.h>
@@ -449,15 +449,6 @@ struct mmc *alloc_mmc_struct(void)
 	return NULL;
 }
 
-static int host_poweroff(struct mmc *dev)
-{
-	struct mmc_host *host = dev->priv;
-	u32 sdi_pwr = ~SDI_PWR_PWRCTRL_ON;
-	debugX(DBG_LVL_VERBOSE, "SDI_PWR <= 0x%08X\n", sdi_pwr);
-	writel(sdi_pwr, &host->base->power);
-	return 0;
-}
-
 /*
  * emmc_host_init - initialize the emmc controller.
  * Configure GPIO settings, set initial clock and power for emmc slot.
@@ -466,38 +457,15 @@ static int host_poweroff(struct mmc *dev)
 static int emmc_host_init(struct mmc *dev)
 {
 	struct mmc_host *host = dev->priv;
-	gpio_error gpioerror;
 	u32 sdi_u32;
 
 	/* TODO: Investigate what is actually needed of the below. */
 
 	if (u8500_is_earlydrop()) {
 		debugX(DBG_LVL_VERBOSE, "configuring EMMC for ED\n");
-		/* Initialize the gpio alternate function for eMMC */
-		struct gpio_register *p_gpio_register =
-			(void *)IO_ADDRESS(CFG_GPIO_6_BASE);
-		p_gpio_register->gpio_dats |= 0x0000FFE0;
-		p_gpio_register->gpio_pdis &= ~0x0000FFE0;
-
-		gpioerror = gpio_altfuncenable(GPIO_ALT_EMMC, "EMMC");
-		if (GPIO_OK != gpioerror) {
-			printf(
-			     "emmc_host_init() gpio_altfuncenable %d failed\n",
-			 gpioerror);
-			goto end;
-		}
-
 		host->base = (struct sdi_registers *)CFG_EMMC_BASE_ED;
 	} else {
 		debugX(DBG_LVL_VERBOSE, "configuring EMMC for V1\n");
-		/* enable the alternate function of PoP EMMC */
-		gpioerror = gpio_altfuncenable(GPIO_ALT_POP_EMMC, "EMMC");
-		if (gpioerror != GPIO_OK) {
-			printf(
-			   "emmc_host_init() gpio_altfuncenable %d failed \n",
-			 gpioerror);
-			goto end;
-		}
 		host->base = (struct sdi_registers *)CFG_EMMC_BASE_V1;
 	}
 
@@ -524,15 +492,6 @@ static int emmc_host_init(struct mmc *dev)
 	dev->f_max = MCLK / 2;
 	dev->ddr_en = 0;
 	return 0;
-
- end:
-	if (u8500_is_earlydrop())
-		gpio_altfuncdisable(GPIO_ALT_EMMC, "EMMC");
-	else
-		gpio_altfuncdisable(GPIO_ALT_POP_EMMC, "EMMC");
-
-	host_poweroff(dev);
-	return MMC_UNSUPPORTED_HW;
 }
 
 /*
@@ -543,21 +502,7 @@ static int emmc_host_init(struct mmc *dev)
 static int mmc_host_init(struct mmc *dev)
 {
 	struct mmc_host *host = dev->priv;
-	gpio_error gpioerror;
-	struct gpio_register *gpio_base_address;
 	u32 sdi_u32;
-
-	gpio_base_address = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
-	gpio_base_address->gpio_dats |= 0xFFC0000;
-	gpio_base_address->gpio_pdis &= ~0xFFC0000;
-
-	/* save the GPIO0 AFSELA register */
-	gpioerror = gpio_altfuncenable(GPIO_ALT_SD_CARD0, "MMC");
-	if (gpioerror != GPIO_OK) {
-		printf("mmc_host_init() gpio_altfuncenable %d failed \n",
-		 gpioerror);
-		goto end;
-	}
 
 	host->base = (struct sdi_registers *)CFG_MMC_BASE;
 	sdi_u32 = 0xBF;
@@ -583,11 +528,6 @@ static int mmc_host_init(struct mmc *dev)
 	dev->f_max = MCLK / 2;
 	dev->ddr_en = 0;
 	return 0;
-
- end:
-	gpio_altfuncdisable(GPIO_ALT_SD_CARD0, "MMC");
-	host_poweroff(dev);
-	return MMC_UNSUPPORTED_HW;
 }
 
 /*

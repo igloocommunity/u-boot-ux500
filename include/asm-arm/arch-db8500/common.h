@@ -127,7 +127,5 @@ typedef u32 t_physical_address;
 typedef u32 t_logical_address;
 
 /*function prototypes*/
-void gpio_init(void);
-
 int board_early_access(block_dev_desc_t *block_dev);
 #endif  /* _DB8500_COMMON_H_ */

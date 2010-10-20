@@ -21,7 +21,6 @@
 
 #include <common.h>
 #include "u8500_udc.h"
-#include <asm/arch/gpio.h>
 
 static volatile struct mg_dev_register *pRegs = 0;
 
@@ -32,8 +31,6 @@ int udc_musb_platform_init(void)
 	u8 soft_reset;
 	u16	temp;
 	pRegs = (volatile struct mg_dev_register *) CONFIG_USB_BASE;
-	
-	gpio_altfuncenable(GPIO_ALT_USB_OTG, "USB-OTG");
 
 	top =  pRegs->OTG_TOPCTRL;
 	pRegs->OTG_TOPCTRL = (top | MODE_ULPI);

@@ -10,7 +10,6 @@
 
 #include <common.h>
 #include <command.h>
-#include <asm/arch/gpio.h>
 #include "mcde_display.h"
 #include "dsilink_regs.h"
 #include <tc35892.h>

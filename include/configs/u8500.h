@@ -309,6 +309,7 @@
 /*
  * U8500 GPIO register base for 9 banks
  */
+#define CONFIG_DB8500_GPIO
 #define CFG_GPIO_0_BASE			0x8012E000
 #define CFG_GPIO_1_BASE			0x8012E080
 #define CFG_GPIO_2_BASE			0x8000E000

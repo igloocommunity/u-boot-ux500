@@ -16,7 +16,6 @@
 
 /* later: #include <asm/arch/i2c.h> */
 #include "i2c.h"
-#include <asm/arch/gpio.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 
@@ -49,16 +48,6 @@ static t_i2c_registers *i2c_dev[] = {
 	(t_i2c_registers *)CONFIG_SYS_I2C1_BASE,
 	(t_i2c_registers *)CONFIG_SYS_I2C2_BASE,
 	(t_i2c_registers *)CONFIG_SYS_I2C3_BASE,
-};
-
-static struct {
-	gpio_alt_function altfunc;
-	char *dev_name;
-} i2c_gpio_altfunc[] = {
-	{GPIO_ALT_I2C_0, "i2c0"},
-	{GPIO_ALT_I2C_1, "i2c1"},
-	{GPIO_ALT_I2C_2, "i2c2"},
-	{GPIO_ALT_I2C_3, "i2c3"},
 };
 
 static struct {
@@ -111,9 +100,6 @@ void i2c_init(int speed, int slaveaddr)
 	t_i2c_registers *p_i2c_registers;
 
 	debug("i2c_init bus %d, speed %d\n", i2c_bus_num, speed);
-
-	(void) gpio_altfuncenable(i2c_gpio_altfunc[i2c_bus_num].altfunc,
-			i2c_gpio_altfunc[i2c_bus_num].dev_name);
 
 	u8500_clock_enable(i2c_clock_bits[i2c_bus_num].periph,
 			   i2c_clock_bits[i2c_bus_num].pcken,
