@@ -110,6 +110,7 @@
 #define CONFIG_CMD_SOURCE
 #define CONFIG_CMD_I2C
 #define CONFIG_CMD_TOC
+#define CONFIG_CMD_SETEXPR	/* used to convert $filesize to $blocksize */
 
 #ifdef CONFIG_USB_TTY
 #define CONFIG_BOOTDELAY	-1	/* disable autoboot */
@@ -154,10 +155,17 @@
 		"mmc read 0 ${loadaddr} 0xA0000 0x4000;"		\
 		"boottime_tag boot_kernel;"				\
 		"bootm ${loadaddr}\0"					\
-	"cmdfile=mmc init 1;mmc_read_cmd_file;run bootcmd\0"		\
-	"flash=mmc init 1;fatload mmc 1 ${loadaddr} flash.scr;"		\
+	"cmdfile=mmc rescan 1;mmc_read_cmd_file;run bootcmd\0"		\
+	"flash=mmc rescan 1;fat load mmc 1 ${loadaddr} /flash.scr;"	\
 		"source ${loadaddr}\0"					\
-	"loaduimage=mmc init 1;fatload mmc 1 ${loadaddr} uImage\0"	\
+	"loaduimage=mmc rescan 1;fat load mmc 1 ${loadaddr} /uImage\0"	\
+	"mmcargs=setenv bootargs ${bootargs} "				\
+		"root=/dev/mmcblk2p2 "					\
+		"rootwait\0"						\
+	"mmcboot=echo Booting from external MMC ...; "			\
+		"run commonargs mmcargs addcons memargs;"		\
+		"write_partition_block;"				\
+		"run loaduimage; bootm ${loadaddr}\0"			\
 	"usbtty=cdc_acm\0"						\
 	"stdout=serial,usbtty\0"					\
 	"stdin=serial,usbtty\0"						\
