@@ -3180,7 +3180,7 @@ u8500_auto_config:
 			echo "#define CONFIG_BOOT_SRAM" >>  $(obj)include/config.h ; \
 			echo "TEXT_BASE = 0x40030000" >$(obj)board/st/u8500/config.tmp ; \
 		fi ; \
-		$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st stw8500 ; \
+		$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st db8500 ; \
 	fi
 
 #########################################################################
