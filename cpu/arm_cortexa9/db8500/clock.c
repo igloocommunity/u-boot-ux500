@@ -191,6 +191,20 @@ static uint32_t get_pll_freq_khz(uint32_t inclk_khz, uint32_t freq_reg)
 	return phi;
 }
 
+u32 db8500_clock_cpu_khz(void)
+{
+	u32 reg, phi;
+
+	reg = readl(PRCM_ARM_CHGCLKREQ_REG);
+	if (reg & 1)
+		return 0; /* External clock */
+
+	reg = readl(PRCM_PLLARM_FREQ_REG);
+	phi = get_pll_freq_khz(38400, reg);
+
+	return phi;
+}
+
 int do_clkinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	uint32_t inclk_khz;

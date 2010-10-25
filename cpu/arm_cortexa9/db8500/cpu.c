@@ -92,3 +92,39 @@ int arch_cpu_init(void)
 }
 #endif /* CONFIG_ARCH_CPU_INIT */
 
+#ifdef CONFIG_DISPLAY_CPUINFO
+int print_cpuinfo(void)
+{
+	char *version, *clock;
+	char clockbuf[24];
+	uint32_t arm_khz;
+
+	/* CPU version: Match most likly CPU first */
+	if (cpu_is_u8500v2())
+		version = "v2";
+	else if (cpu_is_u8500v11())
+		version = "v1.1";
+	else if (cpu_is_u8500v1())
+		version = "v1";
+	else if (u8500_is_earlydrop())
+		version = "ED";
+	else
+		version = "Unknown";
+
+	/* CPU clock speed */
+	arm_khz = db8500_clock_cpu_khz();
+	if (arm_khz == 0)
+		clock = "External clock";
+	else {
+		sprintf(clockbuf, "%u.%u Mhz",
+			arm_khz / 1000, arm_khz % 1000);
+		clock = clockbuf;
+	}
+
+	printf("CPU:\tST-Ericsson db8500 %s (Dual ARM Cortex A9) %s\n",
+		version, clock);
+
+	return 0;
+}
+#endif /* CONFIG_DISPLAY_CPUINFO */
+

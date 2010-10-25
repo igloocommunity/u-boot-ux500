@@ -73,4 +73,7 @@ void db8500_clocks_init(void);
 /* Legacy function to allow drivers to enable their clock */
 void u8500_clock_enable(int periph, int cluster, int kern);
 
+/* Function to get the clock speed of ARM cpu */
+u32 db8500_clock_cpu_khz(void);
+
 #endif /* __ASM_ARCH_CLOCK */
