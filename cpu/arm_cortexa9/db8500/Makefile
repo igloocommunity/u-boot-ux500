@@ -31,6 +31,7 @@ CFLAGS	+= -Wall -Wextra -Werror -Wno-unused-parameter
 
 # Please keep one file per line and in alphabetical order
 COBJS	+= clock.o
+COBJS	+= cpu.o
 COBJS	+= interrupts.o
 COBJS	+= prcmu.o
 COBJS	+= timer.o

@@ -14,6 +14,7 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/ab8500.h>
+#include <asm/arch/prcmu.h>
 #include <tc35892.h>
 #include <asm/arch/gpio.h>
 #include "itp.h"
@@ -25,42 +26,6 @@
 #define NOMADIK_PER4_BASE	(0x80150000)
 #define NOMADIK_BACKUPRAM0_BASE (NOMADIK_PER4_BASE + 0x00000)
 #define NOMADIK_BACKUPRAM1_BASE (NOMADIK_PER4_BASE + 0x01000)
-
-/* Power, Reset, Clock Management Unit */
-/*
- * SVA: Smart Video Accelerator
- * SIA: Smart Imaging Accelerator
- * SGA: Smart Graphic accelerator
- * B2R2: Graphic blitter
- */
-#define PRCMU_BASE	CFG_PRCMU_BASE	/* 0x80157000 for U8500 */
-#define PRCM_ARMCLKFIX_MGT_REG		(PRCMU_BASE + 0x000)
-#define PRCM_ACLK_MGT_REG		(PRCMU_BASE + 0x004)
-#define PRCM_SVAMMDSPCLK_MGT_REG	(PRCMU_BASE + 0x008)
-#define PRCM_SIAMMDSPCLK_MGT_REG	(PRCMU_BASE + 0x00C)
-#define PRCM_SAAMMDSPCLK_MGT_REG	(PRCMU_BASE + 0x010)
-#define PRCM_SGACLK_MGT_REG		(PRCMU_BASE + 0x014)
-#define PRCM_UARTCLK_MGT_REG		(PRCMU_BASE + 0x018)
-#define PRCM_MSPCLK_MGT_REG		(PRCMU_BASE + 0x01C)
-#define PRCM_I2CCLK_MGT_REG		(PRCMU_BASE + 0x020)
-#define PRCM_SDMMCCLK_MGT_REG		(PRCMU_BASE + 0x024)
-#define PRCM_SLIMCLK_MGT_REG		(PRCMU_BASE + 0x028)
-#define PRCM_PER1CLK_MGT_REG		(PRCMU_BASE + 0x02C)
-#define PRCM_PER2CLK_MGT_REG		(PRCMU_BASE + 0x030)
-#define PRCM_PER3CLK_MGT_REG		(PRCMU_BASE + 0x034)
-#define PRCM_PER5CLK_MGT_REG		(PRCMU_BASE + 0x038)
-#define PRCM_PER6CLK_MGT_REG		(PRCMU_BASE + 0x03C)
-#define PRCM_PER7CLK_MGT_REG		(PRCMU_BASE + 0x040)
-#define PRCM_DMACLK_MGT_REG		(PRCMU_BASE + 0x074)
-#define PRCM_B2R2CLK_MGT_REG		(PRCMU_BASE + 0x078)
-
-#define PRCM_PLLSOC0_FREQ_REG		(PRCMU_BASE + 0x080)
-#define PRCM_PLLSOC1_FREQ_REG		(PRCMU_BASE + 0x084)
-#define PRCM_PLLARM_FREQ_REG		(PRCMU_BASE + 0x088)
-#define PRCM_PLLDDR_FREQ_REG		(PRCMU_BASE + 0x08C)
-#define PRCM_ARM_CHGCLKREQ_REG		(PRCMU_BASE + 0x114)
-
-#define PRCM_TCR			(PRCMU_BASE + 0x1C8)
 
 /*
  * Memory controller register
@@ -141,9 +106,11 @@ static struct clk_mgt_regs maja_clk_regs[] = {
 	{0, 0, NULL},
 };
 
-static void init_regs(void);
+static void config_gpio(void);
 
+/* Get hold of gd pointer */
 DECLARE_GLOBAL_DATA_PTR;
+
 #if defined(CONFIG_SHOW_BOOT_PROGRESS)
 void show_boot_progress(int progress)
 {
@@ -230,18 +197,19 @@ int board_init(void)
 		++data_init_flag;
 	}
 
-    gd->bd->bi_arch_number = MACH_TYPE_U8500;
-    gd->bd->bi_boot_params = 0x00000100;
+	/*
+	 * Setup board (bd) and board-info (bi).
+	 * bi_arch_number: Unique id for this board. It will passed in r1 to
+	 *    Linux startup code and is the machine_id.
+	 * bi_boot_params: Where this board expects params.
+	 */
+	gd->bd->bi_arch_number = MACH_TYPE_U8500;
+	gd->bd->bi_boot_params = 0x00000100;
 
-    if (u8500_is_earlydrop()) {
-	/* MTU timer clock always enabled (not clocked) */
-	writel(0x20000, PRCM_TCR);
-    }
-    icache_enable();
-    gpio_init();
+	gpio_init();
+	config_gpio();
 
-    init_regs();
-    return 0;
+	return 0;
 }
 
 int dram_init(void)
@@ -303,7 +271,6 @@ mcde_error:
 }
 #endif
 
-
 /*
  * board_early_access - for functionality that needs to run before
  * board_late_init but after board_init and emmc init.
@@ -336,33 +303,6 @@ int board_early_access(block_dev_desc_t *block_dev)
 	}
 	return 0;
 }
-
-unsigned int addr_vall_arr[] = {
-0x8011F000, 0x0000FFFF, // Clocks for HSI  TODO Enable reqd only
-0x8011F008, 0x00001CFF, // Clocks for HSI  TODO Enable reqd only
-0x8000F000, 0x00007FFF, // Clocks for I2C  TODO Enable reqd only
-0x8000F008, 0x00007FFF, // Clocks for I2C  TODO Enable reqd only
-0x80157020, 0x00000150, // I2C 48MHz clock
-0x8012F000, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
-0x8012F008, 0x00007FFF, // Clocks for SD  TODO Enable reqd only
-0xA03DF000, 0x0000000D, // Clock for MTU Timers
-0x8011E00C, 0x00000000, // GPIO ALT FUNC for EMMC
-0x8011E004, 0x0000FFE0, // GPIO ALT FUNC for EMMC
-0x8011E020, 0x0000FFE0, // GPIO ALT FUNC for EMMC
-0x8011E024, 0x00000000, // GPIO ALT FUNC for EMMC
-0x8012E000, 0x20000000, // GPIO ALT FUNC for UART
-0x8012E00C, 0x00000000, // GPIO ALT FUNC for SD
-0x8012E004, 0x0FFC0000, // GPIO ALT FUNC for SD
-0x8012E020, 0x60000000, // GPIO ALT FUNC for SD
-0x8012E024, 0x60000000, // GPIO ALT FUNC for SD
-0x801571E4, 0x0000000C, // PRCMU settings for B2R2, PRCM_APE_RESETN_SET_REG
-0x80157024, 0x00000130, // PRCMU settings for EMMC/SD
-0xA03FF000, 0x00000003, // USB
-0xA03FF008, 0x00000001, // USB
-0xA03FE00C, 0x00000000, // USB
-0xA03FE020, 0x00000FFF, // USB
-0xA03FE024, 0x00000000	// USB
-};
 
 #ifdef BOARD_LATE_INIT
 #ifdef CONFIG_MMC
@@ -545,48 +485,8 @@ int board_late_init(void)
 }
 #endif /* BOARD_LATE_INIT */
 
-static void init_regs(void)
+static void config_gpio(void)
 {
-	/* FIXME Remove magic register array settings for ED also */
-	if (u8500_is_earlydrop()) {
-		int i;
-
-		for(i = 0; i < ARRAY_SIZE(addr_vall_arr)/2; i++)
-		{
-
-			*((volatile unsigned int *)(addr_vall_arr[2 * i]))
-				= addr_vall_arr[(2 * i) + 1];
-		}
-	} else {
-		struct prcmu *prcmu = (struct prcmu *) U8500_PRCMU_BASE;
-
-		/* Enable timers */
-		writel(1 << 17, &prcmu->tcr);
-
-		u8500_prcmu_enable(&prcmu->per1clk_mgt);
-		u8500_prcmu_enable(&prcmu->per2clk_mgt);
-		u8500_prcmu_enable(&prcmu->per3clk_mgt);
-		u8500_prcmu_enable(&prcmu->per5clk_mgt);
-		u8500_prcmu_enable(&prcmu->per6clk_mgt);
-		u8500_prcmu_enable(&prcmu->per7clk_mgt);
-
-		u8500_prcmu_enable(&prcmu->uartclk_mgt);
-		u8500_prcmu_enable(&prcmu->i2cclk_mgt);
-
-		u8500_prcmu_enable(&prcmu->sdmmcclk_mgt);
-
-		u8500_clock_enable(1, 9, -1);	/* GPIO0 */
-
-		if (u8500_is_earlydrop())
-			u8500_clock_enable(2, 12, -1);	/* GPIO1 */
-		else
-			u8500_clock_enable(2, 11, -1);	/* GPIO1 */
-
-		u8500_clock_enable(3, 8, -1);	/* GPIO2 */
-		u8500_clock_enable(5, 1, -1);	/* GPIO3 */
-
-		u8500_clock_enable(3, 6, 6);	/* UART2 */
-
 		{
 			/* UART2: 29, 30 */
 			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);
@@ -611,19 +511,7 @@ static void init_regs(void)
 		}
 		gpio_altfuncenable(GPIO_ALT_SD_CARD0, "SDCARD");
 
-		u8500_clock_enable(1, 5, 5);	/* SDI0 */
-		u8500_clock_enable(2, 4, 2);	/* SDI4 */
-
-		if (u8500_is_earlydrop())
-			u8500_clock_enable(7, 2, -1);	/* MTU0 */
-		else if (cpu_is_u8500v1())
-			u8500_clock_enable(6, 7, -1);	/* MTU0 */
-		else  if (cpu_is_u8500v2())
-			u8500_clock_enable(6, 6, -1);	/* MTU0 */
-
 		if (!u8500_is_earlydrop()) {
-			u8500_clock_enable(3, 4, 4);	/* SDI2 */
-
 			{
 				/* 128 - 138 */
 				struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_4_BASE);
@@ -633,24 +521,6 @@ static void init_regs(void)
 
 			gpio_altfuncenable(GPIO_ALT_POP_EMMC, "EMMC");
 		}
-
-		/*
-		 * Enabling clocks for all devices which are AMBA devices in the
-		 * kernel.  Otherwise they will not get probe()'d because the
-		 * peripheral ID register will not be powered.
-		 */
-
-		/* XXX: some of these differ between ED/V1 */
-
-		u8500_clock_enable(1, 1, 1);	/* UART1 */
-		u8500_clock_enable(1, 0, 0);	/* UART0 */
-
-		u8500_clock_enable(3, 2, 2);	/* SSP1 */
-		u8500_clock_enable(3, 1, 1);	/* SSP0 */
-
-		u8500_clock_enable(2, 8, -1);	/* SPI0 */
-		u8500_clock_enable(2, 5, 3);	/* MSP2 */
-	}
 }
 
 

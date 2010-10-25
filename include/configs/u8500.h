@@ -36,6 +36,9 @@
 
 #define CONFIG_BOOTTIME
 
+/* run arch_cpu_init() of arm_cortexa9/db8500/cpu.c before board_init() */
+#define CONFIG_ARCH_CPU_INIT	1
+
 #define BOARD_LATE_INIT		1
 
 /*-----------------------------------------------------------------------
