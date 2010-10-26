@@ -310,25 +310,29 @@ mcde_error:
 int board_early_access(block_dev_desc_t *block_dev)
 {
 
+	/*
+	 * Don't load itp, modem and splash if restarted (eg crashdump).
+	 */
+	if (!(data_init_flag > 0)) {
 #ifdef CONFIG_ITP_LOAD
-	itp_read_config(block_dev);
+		itp_read_config(block_dev);
 #endif
 
 #ifdef CONFIG_VIDEO_LOGO
-	/* only load splash if not itp */
+		/* only load splash if not itp */
 #ifdef CONFIG_ITP_LOAD
-	if (!itp_is_itp_in_config())
-		mcde_error = dss_init();
+		if (!itp_is_itp_in_config())
+			mcde_error = dss_init();
 #else
-	mcde_error = dss_init();
+		mcde_error = dss_init();
 #endif
 #endif
 
 #ifdef CONFIG_ITP_LOAD
-	if (itp_load_itp_and_modem(block_dev))
-		return 1;
+		if (itp_load_itp_and_modem(block_dev))
+			return 1;
 #endif
-
+	}
 	return 0;
 }
 
