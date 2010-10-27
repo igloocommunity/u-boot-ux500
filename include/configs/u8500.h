@@ -197,8 +197,6 @@
 #define CONFIG_INITRD_TAG		1
 #define CONFIG_CMDLINE_TAG		1	/* enable passing of ATAGs  */
 
-#define CONFIG_ITP_LOAD			1
-
 #ifdef CONFIG_ITP_LOAD
 #define CONFIG_TOC_PARTITION		1
 #endif
