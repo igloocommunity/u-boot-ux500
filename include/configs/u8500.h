@@ -135,7 +135,7 @@
 		"hwmem=22M@160M pmem_hwb=42M@182M mem_mali=32@224M\0"	\
 	"memargs512=mem=96M@0 mem_modem=32M@96M hwmem=32M@128M "	\
 		"mem=64M@160M mem_mali=32M@224M "			\
-		"pmem_hwb=64M@256M mem=192M@320M\0"			\
+		"pmem_hwb=128M@256M mem=128M@384M\0"			\
 	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
 		"init=init "						\
 		"board_id=${board_id} "					\
