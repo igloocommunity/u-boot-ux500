@@ -586,9 +586,6 @@ static void init_regs(void)
 
 		u8500_clock_enable(3, 6, 6);	/* UART2 */
 
-		gpio_altfuncenable(GPIO_ALT_I2C_0, "I2C0");
-		u8500_clock_enable(3, 3, 3);	/* I2C0 */
-
 		{
 			/* UART2: 29, 30 */
 			struct gpio_register *p_gpio_register = (void *) IO_ADDRESS(CFG_GPIO_0_BASE);

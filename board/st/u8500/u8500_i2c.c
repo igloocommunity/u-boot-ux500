@@ -18,6 +18,7 @@
 #include "i2c.h"
 #include "gpio.h"
 #include <asm/io.h>
+#include <asm/arch/clock.h>
 
 typedef enum {
 	I2C_NACK_ADDR,
@@ -58,6 +59,17 @@ static struct {
 	{GPIO_ALT_I2C_1, "i2c1"},
 	{GPIO_ALT_I2C_2, "i2c2"},
 	{GPIO_ALT_I2C_3, "i2c3"},
+};
+
+static struct {
+	int periph;
+	int pcken;
+	int kcken;
+} i2c_clock_bits[] = {
+	{3, 3, 3}, /* I2C0 */
+	{1, 2, 2}, /* I2C1 */
+	{1, 6, 6}, /* I2C2 */
+	{2, 0, 0}, /* I2C3 */
 };
 
 static int __i2c_set_bus_speed(unsigned int speed)
@@ -102,6 +114,10 @@ void i2c_init(int speed, int slaveaddr)
 
 	(void) gpio_altfuncenable(i2c_gpio_altfunc[i2c_bus_num].altfunc,
 			i2c_gpio_altfunc[i2c_bus_num].dev_name);
+
+	u8500_clock_enable(i2c_clock_bits[i2c_bus_num].periph,
+			   i2c_clock_bits[i2c_bus_num].pcken,
+			   i2c_clock_bits[i2c_bus_num].kcken);
 
 	p_i2c_registers = i2c_dev[i2c_bus_num];
 
@@ -525,7 +541,7 @@ int i2c_read(uchar chip, uint addr, int alen, uchar *buffer, int len)
 	int rc;
 	t_i2c_registers *p_i2c_registers;
 
-	if (alen > 1) {
+	if (alen > 2) {
 		debug("I2C read: addr len %d not supported\n", alen);
 		return 1;
 	}
@@ -564,6 +580,7 @@ int i2c_write(uchar chip, uint addr, int alen, uchar *buffer, int len)
 int i2c_set_bus_num(unsigned int bus)
 {
 	if (bus > ARRAY_SIZE(i2c_dev) - 1) {
+		debug("i2c_set_bus_num: only up to bus %d supported\n", ARRAY_SIZE(i2c_dev)-1);
 		return -1;
 	}
 
