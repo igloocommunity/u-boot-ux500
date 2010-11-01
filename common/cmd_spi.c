@@ -70,12 +70,15 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	uchar tmp;
 	int   j;
 	int   rcode = 0;
+	uchar  *din_p = (uchar *) &din;
+	unsigned int bus;
+	unsigned int mode;
+	unsigned int max_hz;
 
 	/*
 	 * We use the last specified parameters, unless new ones are
 	 * entered.
 	 */
-
 	if ((flag & CMD_FLAG_REPEAT) == 0)
 	{
 		if (argc >= 2)
@@ -100,6 +103,25 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 					dout[j / 2] |= tmp;
 			}
 		}
+
+		if (argc >= 5)
+			if (0 == simple_strtoul(argv[4], NULL, 10))
+				din_p = NULL;
+
+		if (argc >= 6)
+			bus = simple_strtoul(argv[5], NULL, 10);
+		else
+			bus = CONFIG_DEFAULT_SPI_BUS;
+
+		if (argc >= 7)
+			mode = simple_strtoul(argv[6], NULL, 10);
+		else
+			mode = CONFIG_DEFAULT_SPI_MODE;
+
+		if (argc >= 8)
+			max_hz = simple_strtoul(argv[7], NULL, 10);
+		else
+			max_hz = 1000000;
 	}
 
 	if ((bitlen < 0) || (bitlen >  (MAX_SPI_BYTES * 8))) {
@@ -107,9 +129,7 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		return 1;
 	}
 
-	/* FIXME: Make these parameters run-time configurable */
-	slave = spi_setup_slave(CONFIG_DEFAULT_SPI_BUS, device, 1000000,
-			CONFIG_DEFAULT_SPI_MODE);
+	slave = spi_setup_slave(bus, device, max_hz, mode);
 	if (!slave) {
 		printf("Invalid device %d, giving up.\n", device);
 		return 1;
@@ -117,16 +137,24 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	debug ("spi chipsel = %08X\n", device);
 
+	printf("dout: 0x");
+	for (j = 0; j < ((bitlen + 7) / 8); j++)
+		printf("%02X", dout[j]);
+	printf("\n");
+
 	spi_claim_bus(slave);
-	if(spi_xfer(slave, bitlen, dout, din,
+	if (spi_xfer(slave, bitlen, dout, din_p,
 				SPI_XFER_BEGIN | SPI_XFER_END) != 0) {
 		printf("Error with the SPI transaction.\n");
 		rcode = 1;
 	} else {
-		for(j = 0; j < ((bitlen + 7) / 8); j++) {
-			printf("%02X", din[j]);
-		}
-		printf("\n");
+		if (din_p != NULL) {
+			printf("din:  0x");
+			for (j = 0; j < ((bitlen + 7) / 8); j++)
+				printf("%02X", din[j]);
+			printf("\n");
+		} else
+			printf("SPI message sent successfully.\n");
 	}
 	spi_release_bus(slave);
 	spi_free_slave(slave);
@@ -137,10 +165,15 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 /***************************************************/
 
 U_BOOT_CMD(
-	sspi,	5,	1,	do_spi,
+	sspi,	8,	1,	do_spi,
 	"SPI utility commands",
-	"<device> <bit_len> <dout> - Send <bit_len> bits from <dout> out the SPI\n"
-	"<device>  - Identifies the chip select of the device\n"
-	"<bit_len> - Number of bits to send (base 10)\n"
-	"<dout>    - Hexadecimal string that gets sent"
+	"Send <bit_len> bits from <dout> out the SPI\n"
+	"<device> <bit_len> <dout> <use_din> <bus> <mode> <max_hz>\n"
+	"  <device>  - Identifies the chip select of the device\n"
+	"  <bit_len> - Number of bits to send (base 10)\n"
+	"  <dout>    - Hexadecimal string that gets sent\n"
+	"  <use_din> - 0 if no data should be read, != 0 otherwise\n"
+	"  <bus>     - The bus of the SPI controller\n"
+	"  <mode>    - Mode flag\n"
+	"  <max_hz>  - The maximum allowed frequency for the transfers\n"
 );
