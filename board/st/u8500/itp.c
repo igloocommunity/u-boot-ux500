@@ -30,10 +30,10 @@ struct sec_rom_cut_desc {
 };
 
 static const struct sec_rom_cut_desc cuttable[] = {
-	{ 0x9001FFF4, 0x008500A0, 0x90018300 },
+	{ 0x9001DBF4, 0x008500B0, 0x90017300 },
 	{ 0x9001FFF4, 0x008500A1, 0x90018300 },
 	{ 0x9001FFF4, 0x005500A0, 0x90018300 },
-	{ 0x9001DBF4, 0x008500B0, 0x90017300 },
+	{ 0x9001FFF4, 0x008500A0, 0x90018300 },
 };
 
 static u32 cspsa_key;
@@ -85,7 +85,7 @@ static int itp_flush_issw(void)
 				      0);
 
 	if (ret != SEC_ROM_RET_OK) {
-		printf("itp_flush_issw: ISSWAPI_FLUSH_BOOT_CODE failed: %d\n",
+		printf("itp_flush_issw: ISSWAPI_FLUSH_BOOT_CODE: %d\n",
 			ret);
 		return 1;
 	}
@@ -101,12 +101,12 @@ static int itp_load_ipl(block_dev_desc_t *block_dev)
 	u32 returnvalue;
 	int ab8500_cutid;
 
-	debug("loadipl\n");
+	debug("itp_load_ipl\n");
 
 	/* Check if IPL partition is present */
 	if (get_entry_info_toc(block_dev, ITP_TOC_IPL_NAME, &offset,
 			       &size, &loadaddr)) {
-		printf("itp_load_ipl: get_entry_info_toc failed\n");
+		printf("itp_load_ipl: ipl toc entry not present\n");
 		return 1;
 	}
 
@@ -118,7 +118,7 @@ static int itp_load_ipl(block_dev_desc_t *block_dev)
 					      IPL_ITEM_ID,
 					      ab8500_cutid);
 	if (returnvalue != SEC_ROM_RET_OK) {
-		printf("itp_load_ipl: ISSWAPI_SECURE_LOAD failed: %d\n",
+		printf("itp_load_ipl: ISSWAPI_SECURE_LOAD: %d\n",
 			returnvalue);
 		return 1;
 	}
@@ -138,7 +138,7 @@ static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 
 	if (get_entry_info_toc(block_dev, partname, &offset,
 			       &size, loadaddress)) {
-		printf("itp_load_toc_entry: get_entry_info_toc failed\n");
+		printf("itp_load_toc_entry: %s not present\n", partname);
 		return 1;
 	}
 
@@ -163,7 +163,7 @@ int itp_read_config(block_dev_desc_t *block_dev)
 	if (cspsa_fp_read(block_dev,
 			  ITP_CSPSA_KEY,
 			  &cspsa_key)) {
-		printf("itp_load_itp_and_modem: cspsa_fp_read failed\n");
+		printf("itp_read_config: config not present\n");
 		cspsa_key = 0;
 		return 1;
 	}
