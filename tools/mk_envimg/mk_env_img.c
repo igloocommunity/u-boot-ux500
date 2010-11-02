@@ -18,7 +18,7 @@
 #include "mk_env_img.h"
 
 #define ENV_SIZE	(CONFIG_ENV_SIZE - sizeof(uint32_t))
-#define CONFIG_BUF_SIZE	200
+#define CONFIG_BUF_SIZE	(ENV_SIZE)
 
 struct env_image_single {
 	uint32_t	crc;	/* CRC32 over data bytes    */
