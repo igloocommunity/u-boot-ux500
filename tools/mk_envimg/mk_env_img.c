@@ -361,7 +361,7 @@ static char *split_name_value_pair(char *s, char *endpos)
  * default image.
  * Return values:
  * OK      - for success
- * -NOK    - Text string is larger than text buffer
+ * -NOK    - Faulty comment or Text string is larger than text buffer
  * -ENOENT - File or folder does not exist
  */
 static int replace_default_values(char *file_name)
@@ -380,14 +380,25 @@ static int replace_default_values(char *file_name)
 	}
 
 	while (ret != EOF) {
+		/*
+		 * Each iteraction s points to beginning of s_buf. s gets
+		 * and fills s_buf with new characters until LR or EOF is
+		 * reached. i makes sure that the buffer isn't overflowed.
+		 */
 		for (s = &s_buf[0]; i < CONFIG_BUF_SIZE; i++) {
 			ret = fgetc(config_file);
 			*s = (char) ret;
 
 			if ((*s == '\n') || (ret == EOF)) {
+				i = 0;
+
+				/* If line starts with '#' it's a comment,
+				 * proceed to next line */
+				if (s_buf[0] == '#')
+					break;
+
 				value = split_name_value_pair(&s_buf[0], s);
 				replace_name_value_pair(&s_buf[0], value);
-				i = 0;
 				break;
 			}
 

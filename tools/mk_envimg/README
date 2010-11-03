@@ -20,11 +20,14 @@ If an input file is specified it will remove, modify and/or remove
 default environment variables.
 
 Input file examples:
-* Add a new variable:
+* Add a new variable -> write the new variable and its value:
 an_new_variable=a_new_value
 
-* Remove the variable bootargs
+* Remove the variable bootargs -> write its name without a value:
 bootargs
 
-* Modify the variable bootargs
+* Modify the variable bootargs -> write its name with a new value:
 bootargs=a_new_value
+
+* Comments -> add # at the beginning of the line
+# This is a comment
