@@ -148,7 +148,7 @@ static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 	n = block_dev->block_read(block_dev->dev,
 				  offset / block_dev->blksz,
 				  size,
-				  loadaddress);
+				  *loadaddress);
 
 	if (n != size) {
 		printf("itp_load_toc_entry: Failed to load %s!\n", partname);
@@ -163,9 +163,9 @@ int itp_read_config(block_dev_desc_t *block_dev)
 	if (cspsa_fp_read(block_dev,
 			  ITP_CSPSA_KEY,
 			  &cspsa_key)) {
-		printf("itp_read_config: config not present\n");
-		cspsa_key = 0;
-		return 1;
+		printf("itp_read_config: config not present. "
+			   "Using default values\n");
+		cspsa_key = (ITP_LOAD_MODEM | ITP_LOAD_KERNEL);
 	}
 	return 0;
 }
