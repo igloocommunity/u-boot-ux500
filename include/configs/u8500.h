@@ -57,6 +57,10 @@
 #define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 16*1024)
 #define CONFIG_SYS_GBL_DATA_SIZE	128	/* for initial data */
 
+#define CONFIG_ENV_IS_IN_EMMC
+#define CONFIG_ENV_TOC_NAME		"UBOOT_ENV"
+#define CONFIG_CMD_SAVEENV
+
 /*-----------------------------------------------------------------------
  * PL011 Configuration
  */
@@ -106,7 +110,6 @@
 #define CONFIG_CMD_FAT
 #define CONFIG_CMD_TREE_FAT	/* Rockbox */
 #define CONFIG_CMD_EXT2
-#define CONFIG_CMD_EMMC
 #define CONFIG_CMD_SOURCE
 #define CONFIG_CMD_I2C
 #define CONFIG_CMD_TOC
@@ -257,12 +260,6 @@
  */
 #define CFG_EMMC_BASE_V1		0x80005000	/*POP EMMC base of size 256MB for 8500 cut1.0 */
 #define CFG_EMMC_BASE_ED		0x80114000	/* EMMC base of size 2GB for 8500  */
-
-#define CONFIG_CMD_ENV
-#define CONFIG_CMD_SAVEENV	/* CMD_ENV is obsolete but used in env_emmc.c */
-#define CONFIG_ENV_IS_IN_EMMC		1
-#define CONFIG_ENV_OFFSET_START		0x13F80000
-#define CONFIG_ENV_OFFSET_END		0x13FE0000
 #define CONFIG_EMMC_DEV_NUM		0
 
 /*-----------------------------------------------------------------------
