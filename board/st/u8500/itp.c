@@ -148,7 +148,7 @@ static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 	n = block_dev->block_read(block_dev->dev,
 				  offset / block_dev->blksz,
 				  size,
-				  *loadaddress);
+				  (void *) *loadaddress);
 
 	if (n != size) {
 		printf("itp_load_toc_entry: Failed to load %s!\n", partname);
