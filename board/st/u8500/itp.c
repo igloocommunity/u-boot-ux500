@@ -182,7 +182,7 @@ int itp_is_itp_in_config(void)
 int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 {
 	int retval = 0;
-	void (*loadaddress)(void) = NULL;
+	u32 loadaddress;
 
 	debug("\nitp_load_itp_and_modem\n");
 
@@ -194,7 +194,7 @@ int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 	if (cspsa_key & ITP_LOAD_MODEM) {
 		if (itp_load_toc_entry(block_dev,
 				       ITP_TOC_MODEM_NAME,
-				       (u32 *)loadaddress)) {
+				       &loadaddress)) {
 			retval = 1;
 			goto exit;
 		}
@@ -208,7 +208,7 @@ int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 	if (cspsa_key & ITP_LOAD_ITP) {
 		if (itp_load_toc_entry(block_dev,
 				       ITP_TOC_ITP_NAME,
-				       (u32 *)loadaddress)) {
+				       &loadaddress)) {
 			retval = 1;
 			goto exit;
 		}
@@ -220,7 +220,8 @@ exit:
 		itp_flush_issw();
 
 	if ((cspsa_key & ITP_LOAD_ITP) && !retval)
-		loadaddress(); /* U-boot execution will end here*/
+		/* U-boot execution will end here */
+		((void (*)(void))loadaddress)();
 
 	/* Return on error */
 	return retval;
