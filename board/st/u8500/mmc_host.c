@@ -439,6 +439,8 @@ struct mmc *alloc_mmc_struct(void)
 	if (!mmc_device)
 		goto err;
 
+	memset(mmc_device, 0x00, sizeof(struct mmc));
+
 	mmc_device->priv = host;
 	return mmc_device;
  err:
@@ -578,6 +580,7 @@ static int mmc_host_init(struct mmc *dev)
 	dev->voltages = VOLTAGE_WINDOW_SD;
 	dev->f_min = dev->clock;
 	dev->f_max = MCLK / 2;
+	dev->ddr_en = 0;
 	return 0;
 
  end:
