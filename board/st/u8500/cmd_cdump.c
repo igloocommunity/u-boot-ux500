@@ -251,6 +251,10 @@ static int wait_for_mmc(void)
 	struct mmc *mmc;
 
         mmc = find_mmc_device(CONFIG_MMC_DEV_NUM);
+	if (!mmc) {
+		printf("MMC device %d not found\n", CONFIG_MMC_DEV_NUM);
+		return 1;
+	}
 	while (mmc_init(mmc) != 0) {
 		printf("Insert MMC/SD card or press ctrl-c to abort\n");
 		putc('.');
