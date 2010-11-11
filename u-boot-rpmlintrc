@@ -1,0 +1,3 @@
+addFilter("u-boot.* executable-stack /boot/u-boot")
+addFilter("u-boot.* statically-linked-binary /boot/u-boot")
+addFilter("u-boot.* name-repeated-in-summary C U-Boot")

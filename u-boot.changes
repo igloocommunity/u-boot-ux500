@@ -1,0 +1,17 @@
+* Thu Nov 11 2010 Robert Rosengren <robert.rosengren@stericsson.com> - 2009.11
+- Upgraded u-boot that handles TOC partitions. Also removed incorrect git commit
+  from the RPM version.
+* Tue Sep 28 2010 Robert Rosengren <robert.rosengren@stericsson.com> - 2009.11_00012_g7e89ff9
+- Spec file cleanup.
+* Fri Aug 06 2010 Johann Dischler <johann.xx.dischler@stericsson.com> - 2009.11_00012_g7e89ff9
+- Update verion to 2009.11_00012_g7e89ff9
+* Tue Jun 29 2010 Olle Tränk <olle.trank@stericsson.com> - 1.3.1
+- Removed unnecessary source package. Fixed RPMLINT
+  warnings/errors, added rpmlintrc to supress false positive.
+  Cleaned .spec file.
+* Wed Jun 09 2010 Robert Rosengren <robert.rosengren@stericsson.com> - 1.3.1
+- Added patch 3: u-boot-increase-default-kernel-load-size-to-0x220000
+* Mon Jun 07 2010 Olle Tränk <olle.trank@stericsson.com> - 1.3.1
+- Added patches to src package
+* Wed Jun 03 2010 Olle Tränk <olle.trank@stericsson.com> - 1.3.1
+- Initial STE version
