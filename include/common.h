@@ -618,6 +618,10 @@ int gunzip(void *, int, unsigned char *, unsigned long *);
 int zunzip(void *dst, int dstlen, unsigned char *src, unsigned long *lenp,
 						int stoponerr, int offset);
 
+/* lib_generic/qsort.c */
+void qsort(void *base, size_t nmemb, size_t size,
+	   int(*compar)(const void *, const void *));
+
 /* lib_generic/time.c */
 void	udelay        (unsigned long);
 
