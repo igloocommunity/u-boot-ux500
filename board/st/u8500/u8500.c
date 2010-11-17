@@ -8,6 +8,7 @@
 #include <common.h>
 #include <i2c.h>
 #include <asm/types.h>
+#include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/errno.h>
 #include <asm/arch/clock.h>
@@ -229,7 +230,7 @@ int board_init(void)
 		++data_init_flag;
 	}
 
-    gd->bd->bi_arch_number = 0x1A4;
+    gd->bd->bi_arch_number = MACH_TYPE_U8500;
     gd->bd->bi_boot_params = 0x00000100;
 
     if (u8500_is_earlydrop()) {
