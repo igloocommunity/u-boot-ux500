@@ -21,7 +21,7 @@
  */
 /* --- includes ----------------------------------------------------------- */
 
-#include "gpio.h"
+#include <asm/arch/gpio.h>
 
 static	struct gpio_register *addr_gpio_register[GPIO_BLOCKS_COUNT];
 

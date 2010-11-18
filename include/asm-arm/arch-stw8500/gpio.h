@@ -26,8 +26,7 @@
 #include <asm/io.h>
 #include <asm/errno.h>
 
-#include "common.h"
-#include <configs/u8500.h>
+#include <asm/arch/common.h>
 
 #define GPIO_TOTAL_PINS                 268
 

@@ -16,7 +16,7 @@
 
 /* later: #include <asm/arch/i2c.h> */
 #include "i2c.h"
-#include "gpio.h"
+#include <asm/arch/gpio.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 

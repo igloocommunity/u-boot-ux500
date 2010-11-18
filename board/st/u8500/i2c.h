@@ -28,7 +28,7 @@
 #include <asm/io.h>
 #include <asm/errno.h>
 
-#include "common.h"
+#include <asm/arch/common.h>
 #include <configs/u8500.h>
 
 #define MASK_BIT0     (1UL<<0)

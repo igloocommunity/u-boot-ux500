@@ -21,7 +21,7 @@
  */
 #include <linux/ctype.h>
 
-#include "common.h"
+#include <asm/arch/common.h>
 #include <command.h>
 #include <mmc.h>
 #include <fat.h>

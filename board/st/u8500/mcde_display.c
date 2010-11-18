@@ -10,7 +10,7 @@
 
 #include <common.h>
 #include <command.h>
-#include "gpio.h"
+#include <asm/arch/gpio.h>
 #include "mcde_display.h"
 #include "dsilink_regs.h"
 #include <tc35892.h>
@@ -19,7 +19,7 @@
 #include "mcde.h"
 #include <linux/err.h>
 #include <asm/arch/ab8500.h>
-#include "common.h"
+#include <asm/arch/common.h>
 #include <part.h>
 #include <mmc.h>
 

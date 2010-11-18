@@ -19,8 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
-#ifndef _COMMON_H_
-#define _COMMON_H_
+#ifndef _DB8500_COMMON_H_
+#define _DB8500_COMMON_H_
 #include <common.h>
 
 #define PASS (1)
@@ -128,6 +128,11 @@ typedef u32 t_logical_address;
 
 /*function prototypes*/
 void gpio_init(void);
-int  emmc_init (u8);
 
-#endif  /* _COMMON_H_ */
+int u8500_is_earlydrop(void);
+int cpu_is_u8500v11(void);
+int cpu_is_u8500v1(void);
+int cpu_is_u8500v2(void);
+
+int board_early_access(block_dev_desc_t *block_dev);
+#endif  /* _DB8500_COMMON_H_ */

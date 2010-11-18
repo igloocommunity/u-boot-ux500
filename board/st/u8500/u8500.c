@@ -15,10 +15,10 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/ab8500.h>
 #include <tc35892.h>
-#include "gpio.h"
+#include <asm/arch/gpio.h>
 #include "itp.h"
 
-#include "common.h"
+#include <asm/arch/common.h>
 #ifdef CONFIG_VIDEO_LOGO
 #include "mcde_display.h"
 #endif

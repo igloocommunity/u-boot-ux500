@@ -14,9 +14,9 @@
 #define DBG_LVL_INFO	(1)
 #define DBG_LVL_VERBOSE	(2)
 
-#include "common.h"
+#include <asm/arch/common.h>
 #include <mmc.h>
-#include "gpio.h"
+#include <asm/arch/gpio.h>
 #include "mmc_host.h"
 #include <malloc.h>
 #include <div64.h>

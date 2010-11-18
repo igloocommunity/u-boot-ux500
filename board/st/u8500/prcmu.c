@@ -23,7 +23,7 @@
 
 #include <asm/arch/ab8500.h>
 
-#include "common.h"
+#include <asm/arch/common.h>
 #include "prcmu-fw-defs_v1.h"
 
 #define DEBUG 0
