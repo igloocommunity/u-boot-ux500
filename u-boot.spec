@@ -55,6 +55,8 @@ install -m 644 %{_builddir}/u-boot-%{base_version}/u-boot.lds %{buildroot}%{boot
 install -m 755 %{_builddir}/u-boot-%{base_version}/tools/mkimage %{buildroot}%{_bindir}
 install -m 755 %{_builddir}/u-boot-%{base_version}/tools/img2srec %{buildroot}%{_bindir}
 install -m 755 %{_builddir}/u-boot-%{base_version}/tools/mk_envimg/mk_envimg %{buildroot}%{_bindir}
+install -m 644 %{_builddir}/u-boot-%{base_version}/tools/logos/ste-rgb565.bin %{buildroot}%{boot_path}/splash.bin
+
 #Remove unwanted sections
 objcopy --gap-fill=0xff --remove-section=.note.gnu.build-id -O binary %{buildroot}%{boot_path}/u-boot %{buildroot}%{boot_path}/u-boot.bin
 
@@ -67,6 +69,7 @@ rm -rf %{buildroot}/*
 %{boot_path}/u-boot.map
 %{boot_path}/u-boot
 %{boot_path}/u-boot.lds
+%{boot_path}/splash.bin
 
 %files tools
 %defattr(-,root,root)
