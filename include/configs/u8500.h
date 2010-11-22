@@ -28,18 +28,11 @@
  * (easy to change)
  */
 #define CONFIG_U8500		1
-#define CONFIG_U8500_ED		1
 #define CONFIG_L2_OFF		1
 
 #define CONFIG_SYS_MEMTEST_START	0x00000000
 #define CONFIG_SYS_MEMTEST_END	0x1FFFFFFF
 #define CONFIG_SYS_HZ		1000		/* must be 1000 */
-
-#ifndef CONFIG_U8500_V1
-#define CONFIG_SYS_TIMERBASE	0xA03DA000      /* MTU0 timer */
-#else
-#define CONFIG_SYS_TIMERBASE	0xA03C6000      /* MTU0 timer */
-#endif
 
 #define CONFIG_BOOTTIME
 
@@ -280,8 +273,7 @@
  * FLASH and environment organization
  */
 
-#define CONFIG_SYS_MAX_FLASH_SECT 	512
-#define CONFIG_SYS_MAX_FLASH_BANKS	1	/* max number of memory banks */
+#define CONFIG_SYS_NO_FLASH
 
 /*-----------------------------------------------------------------------
  * Video Logo Related configs
@@ -308,8 +300,6 @@
  * base register values for U8500
  */
 #define CFG_PRCMU_BASE		0x80157000	/* Power, reset and clock Management Unit */
-#define CFG_SDRAMC_BASE		0x903CF000	/* SDRAMC cnf registers */
-#define CFG_FSMC_BASE		0x80000000	/* FSMC Controller */
 
 /*
  * U8500 GPIO register base for 9 banks
