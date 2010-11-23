@@ -1,4 +1,6 @@
-* Thu Nov 11 2010 Robert Rosengren <robert.rosengren@stericsson.com> - 2009.11
+* Tue Nov 23 2010 Robert Rosengren <robert.rosengren@stericsson.com> - 2009.11-2
+- Renamed u-boot packages to u8500 to easier handle u-boot variants
+* Thu Nov 11 2010 Robert Rosengren <robert.rosengren@stericsson.com> - 2009.11-1
 - Upgraded u-boot that handles TOC partitions. Also removed incorrect git commit
   from the RPM version.
 * Tue Sep 28 2010 Robert Rosengren <robert.rosengren@stericsson.com> - 2009.11_00012_g7e89ff9

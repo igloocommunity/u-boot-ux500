@@ -1,14 +1,16 @@
 #Defines
+%define base_name u-boot
+%define variant_name u8500
 %define base_version 2009.11
 %define boot_path /boot
 
-Name: u-boot
-Release: 1
+Name: %{base_name}-%{variant_name}
+Release: 2
 Version: %{base_version}
 License: GPL
 URL: http://www.denx.de/wiki/U-Boot
-Source0: %{name}-%{base_version}.tar.bz2
-Source100: %{name}-rpmlintrc
+Source0: %{base_name}-%{base_version}.tar.bz2
+Source100: %{base_name}-rpmlintrc
 
 Summary: Das U-Boot boot loader binary
 Group: Binary
@@ -21,19 +23,19 @@ MIPS and several other processors, which can be installed in a boot
 ROM and used to initialize and test the hardware or to download and
 run application code.
 
-%package tools
+%package -n %{base_name}-tools
 Summary: Das U-Boot boot image maker
 Group: Development/Tools
 
-%description tools
+%description -n %{base_name}-tools
 U-Boot utility for creating bootable kernel images.
 
 %prep
-%setup -q
+%setup -q -n %{base_name}-%{base_version}
 
 %build
-#Default config for u8500
-make u8500_def_config
+#Make default config for variant
+make %{variant_name}_def_config
 
 #Build-id needed/wanted by rpmbuild
 export LDFLAGS="$LDFLAGS --build-id"
@@ -71,7 +73,7 @@ rm -rf %{buildroot}/*
 %{boot_path}/u-boot.lds
 %{boot_path}/splash.bin
 
-%files tools
+%files -n %{base_name}-tools
 %defattr(-,root,root)
 %{_bindir}/mkimage
 %{_bindir}/img2srec
