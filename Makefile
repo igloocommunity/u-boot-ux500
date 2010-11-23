@@ -3157,28 +3157,31 @@ u8500_def_config \
 u8500_SRAM_config \
 u8500_noconsole_config \
 u8500_udc_config \
-u8500_auto_config: unconfig
-	@mkdir -p $(obj)include
-	@mkdir -p $(obj)board/st/u8500
-	@ > $(obj)include/config.h
-	@if [ "$(findstring _def, $@)" ] ; then \
-		echo "#ifndef  CONFIG_SKIP_LOWLEVEL_INIT " >> $(obj)include/config.h ; \
-                echo "#define  CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
-                echo "#endif"  >> $(obj)include/config.h ; \
-	elif [ "$(findstring _noconsole, $@)" ] ; then \
-		echo "Configuring for no console ..." ; \
-                echo "#ifndef CONFIG_SKIP_LOWLEVEL_INIT"  >> $(obj)include/config.h ; \
-                echo "#define CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
-                echo "#endif"  >> $(obj)include/config.h ; \
-                echo "#define CONFIG_SILENT_CONSOLE 1" >>  $(obj)include/config.h ; \
-	elif [ "$(findstring _udc, $@)" ] ; then \
-                echo "#define CONFIG_USB_TTY 1" >>  $(obj)include/config.h ; \
-	fi; \
-	if [ "$(findstring _SRAM, $@)" ] ; then \
-		echo "#define CONFIG_BOOT_SRAM" >>  $(obj)include/config.h ; \
-		echo "TEXT_BASE = 0x40030000" >$(obj)board/st/u8500/config.tmp ; \
-	fi;
-	@$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st stw8500
+u8500_auto_config:
+	@if [ -z "$(shell grep "steconfig:$@" $(obj)include/config.h 2>/dev/null)" ]; then \
+		$(MAKE) unconfig ; \
+		mkdir -p $(obj)include ; \
+		mkdir -p $(obj)board/st/u8500 ; \
+		echo "/* steconfig:$@ */" > $(obj)include/config.h ; \
+		if [ "$(findstring _def, $@)" ] ; then \
+			echo "#ifndef  CONFIG_SKIP_LOWLEVEL_INIT " >> $(obj)include/config.h ; \
+			echo "#define  CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
+			echo "#endif"  >> $(obj)include/config.h ; \
+		elif [ "$(findstring _noconsole, $@)" ] ; then \
+			echo "Configuring for no console ..." ; \
+			echo "#ifndef CONFIG_SKIP_LOWLEVEL_INIT"  >> $(obj)include/config.h ; \
+			echo "#define CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
+			echo "#endif"  >> $(obj)include/config.h ; \
+			echo "#define CONFIG_SILENT_CONSOLE 1" >>  $(obj)include/config.h ; \
+		elif [ "$(findstring _udc, $@)" ] ; then \
+			echo "#define CONFIG_USB_TTY 1" >>  $(obj)include/config.h ; \
+		fi ; \
+		if [ "$(findstring _SRAM, $@)" ] ; then \
+			echo "#define CONFIG_BOOT_SRAM" >>  $(obj)include/config.h ; \
+			echo "TEXT_BASE = 0x40030000" >$(obj)board/st/u8500/config.tmp ; \
+		fi ; \
+		$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st stw8500 ; \
+	fi
 
 #########################################################################
 ## XScale Systems
