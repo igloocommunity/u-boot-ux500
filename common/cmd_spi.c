@@ -48,19 +48,27 @@
  * Values from last command.
  */
 static unsigned int	device;
-static int   		bitlen;
-static uchar 		dout[MAX_SPI_BYTES];
-static uchar 		din[MAX_SPI_BYTES];
+static int		bitlen;
+static uchar		dout[MAX_SPI_BYTES];
+static uchar		din[MAX_SPI_BYTES];
+static uchar		*din_p		= (uchar *) &din;
+static unsigned int	bus		= CONFIG_DEFAULT_SPI_BUS;
+static unsigned int	mode		= CONFIG_DEFAULT_SPI_MODE;
+static unsigned int	max_hz		= 1000000;
 
 /*
  * SPI read/write
  *
  * Syntax:
- *   spi {dev} {num_bits} {dout}
+ *   spi {dev} {num_bits} {dout} {use_din} {din} {bus} {max_hz}
  *     {dev} is the device number for controlling chip select (see TBD)
  *     {num_bits} is the number of bits to send & receive (base 10)
  *     {dout} is a hexadecimal string of data to send
- * The command prints out the hexadecimal string received via SPI.
+ *     {use_din} is wether we should ignore the received data or not
+ *     {bus} is which on the SPI controller to use
+ *     {mode} is the mode flag used for initializing the SPI slave
+ *     {max_hz} is the maximum allowed frequenzy
+ * The command prints the hexadecimal string sent and received via SPI.
  */
 
 int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
@@ -70,10 +78,6 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	uchar tmp;
 	int   j;
 	int   rcode = 0;
-	uchar  *din_p = (uchar *) &din;
-	unsigned int bus;
-	unsigned int mode;
-	unsigned int max_hz;
 
 	/*
 	 * We use the last specified parameters, unless new ones are
@@ -103,25 +107,18 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 					dout[j / 2] |= tmp;
 			}
 		}
-
-		if (argc >= 5)
+		if (argc >= 5) {
 			if (0 == simple_strtoul(argv[4], NULL, 10))
 				din_p = NULL;
-
+			else
+				din_p = (uchar *) &din;
+		}
 		if (argc >= 6)
 			bus = simple_strtoul(argv[5], NULL, 10);
-		else
-			bus = CONFIG_DEFAULT_SPI_BUS;
-
 		if (argc >= 7)
 			mode = simple_strtoul(argv[6], NULL, 10);
-		else
-			mode = CONFIG_DEFAULT_SPI_MODE;
-
 		if (argc >= 8)
 			max_hz = simple_strtoul(argv[7], NULL, 10);
-		else
-			max_hz = 1000000;
 	}
 
 	if ((bitlen < 0) || (bitlen >  (MAX_SPI_BYTES * 8))) {
