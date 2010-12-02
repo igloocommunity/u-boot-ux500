@@ -5,7 +5,7 @@
 # been built. Typical (only?) example: linux kernel (needs mkimage program)
 .phony: build-mkenvimg build-uboot clean-uboot
 
-PRIVATE_UBOOT_ARGS := -C $(BOOT_PATH)/u-boot ARCH=arm CROSS_COMPILE=$(CROSS_COMPILE)
+PRIVATE_UBOOT_ARGS := -C $(BOOT_PATH)/u-boot ARCH=arm CROSS_COMPILE=$(CROSS_COMPILE) O=$(UBOOT_OUTPUT)
 PRIVATE_OUT := $(abspath $(PRODUCT_OUT)/root)
 
 # The next three assignments are for building mk_envimg host tool.
