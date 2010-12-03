@@ -17,7 +17,7 @@
 #include <config.h>
 #include <asm/io.h>
 #include <asm/arch/cpu.h>
-#include <asm/arch/hardware.h>
+#include <asm/arch/prcmu.h>
 #include <asm/types.h>
 #include <asm/io.h>
 #include <asm/errno.h>
@@ -203,4 +203,29 @@ int prcmu_i2c_write(u8 reg, u16 slave, u8 reg_data)
 		printf("ape-i2c: i2c_status : 0x%x\n", i2c_status);
 		return -1;
 	}
+}
+
+static void prcmu_enable(u32 *reg)
+{
+	writel(readl(reg) | (1 << 8), reg);
+}
+
+void db8500_prcmu_init(void)
+{
+	/* Enable timers */
+	writel(1 << 17, PRCM_TCR);
+
+	prcmu_enable((u32 *)PRCM_PER1CLK_MGT_REG);
+	prcmu_enable((u32 *)PRCM_PER2CLK_MGT_REG);
+	prcmu_enable((u32 *)PRCM_PER3CLK_MGT_REG);
+	/* PER4CLK does not exist */
+	prcmu_enable((u32 *)PRCM_PER5CLK_MGT_REG);
+	prcmu_enable((u32 *)PRCM_PER6CLK_MGT_REG);
+	/* Only exists in ED but is always ok to write to */
+	prcmu_enable((u32 *)PRCM_PER7CLK_MGT_REG);
+
+	prcmu_enable((u32 *)PRCM_UARTCLK_MGT_REG);
+	prcmu_enable((u32 *)PRCM_I2CCLK_MGT_REG);
+
+	prcmu_enable((u32 *)PRCM_SDMMCCLK_MGT_REG);
 }

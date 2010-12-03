@@ -55,23 +55,7 @@ static void init_regs(void)
 			*((volatile unsigned int *)(addr_vall_arr[2 * i]))
 				= addr_vall_arr[(2 * i) + 1];
 	} else {
-		struct prcmu *prcmu = (struct prcmu *) U8500_PRCMU_BASE;
-
-		/* Enable timers */
-		writel(1 << 17, &prcmu->tcr);
-
-		u8500_prcmu_enable(&prcmu->per1clk_mgt);
-		u8500_prcmu_enable(&prcmu->per2clk_mgt);
-		u8500_prcmu_enable(&prcmu->per3clk_mgt);
-		u8500_prcmu_enable(&prcmu->per5clk_mgt);
-		u8500_prcmu_enable(&prcmu->per6clk_mgt);
-		u8500_prcmu_enable(&prcmu->per7clk_mgt);
-
-		u8500_prcmu_enable(&prcmu->uartclk_mgt);
-		u8500_prcmu_enable(&prcmu->i2cclk_mgt);
-
-		u8500_prcmu_enable(&prcmu->sdmmcclk_mgt);
-
+		db8500_prcmu_init();
 		db8500_clocks_init();
 	}
 }
