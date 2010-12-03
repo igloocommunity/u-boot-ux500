@@ -62,11 +62,15 @@ struct prcmu {
 	unsigned int ape_softrst;
 };
 
-extern void u8500_clock_enable(int periph, int kern, int cluster);
-
 static inline void u8500_prcmu_enable(unsigned int *reg)
 {
 	writel(readl(reg) | (1 << 8), reg);
 }
+
+/* Enable all clocks u-boot needs in db8500 SoC platform */
+void db8500_clocks_init(void);
+
+/* Legacy function to allow drivers to enable their clock */
+void u8500_clock_enable(int periph, int cluster, int kern);
 
 #endif /* __ASM_ARCH_CLOCK */

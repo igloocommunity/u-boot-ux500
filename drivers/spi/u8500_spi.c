@@ -11,6 +11,7 @@
 #include <common.h>
 #include <malloc.h>
 #include <asm/io.h>
+#include <asm/arch/clock.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/gpio.h>
 #include <spi.h>

@@ -72,49 +72,7 @@ static void init_regs(void)
 
 		u8500_prcmu_enable(&prcmu->sdmmcclk_mgt);
 
-		u8500_clock_enable(1, 9, -1);	/* GPIO0 */
-
-		if (u8500_is_earlydrop())
-			u8500_clock_enable(2, 12, -1);	/* GPIO1 */
-		else
-			u8500_clock_enable(2, 11, -1);	/* GPIO1 */
-
-		u8500_clock_enable(3, 8, -1);	/* GPIO2 */
-		u8500_clock_enable(5, 1, -1);	/* GPIO3 */
-
-		u8500_clock_enable(3, 6, 6);	/* UART2 */
-
-		u8500_clock_enable(3, 3, 3);	/* I2C0 */
-
-		u8500_clock_enable(1, 5, 5);	/* SDI0 */
-		u8500_clock_enable(2, 4, 2);	/* SDI4 */
-
-		if (u8500_is_earlydrop())
-			u8500_clock_enable(7, 2, -1);	/* MTU0 */
-		else if (cpu_is_u8500v1())
-			u8500_clock_enable(6, 7, -1);	/* MTU0 */
-		else if (cpu_is_u8500v2())
-			u8500_clock_enable(6, 6, -1);	/* MTU0 */
-
-		if (!u8500_is_earlydrop())
-			u8500_clock_enable(3, 4, 4);	/* SDI2 */
-
-		/*
-		 * Enabling clocks for all devices which are AMBA devices in the
-		 * kernel.  Otherwise they will not get probe()'d because the
-		 * peripheral ID register will not be powered.
-		 */
-
-		/* XXX: some of these differ between ED/V1 */
-
-		u8500_clock_enable(1, 1, 1);	/* UART1 */
-		u8500_clock_enable(1, 0, 0);	/* UART0 */
-
-		u8500_clock_enable(3, 2, 2);	/* SSP1 */
-		u8500_clock_enable(3, 1, 1);	/* SSP0 */
-
-		u8500_clock_enable(2, 8, -1);	/* SPI0 */
-		u8500_clock_enable(2, 5, 3);	/* MSP2 */
+		db8500_clocks_init();
 	}
 }
 
