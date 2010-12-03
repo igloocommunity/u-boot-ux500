@@ -16,6 +16,7 @@
 #include <common.h>
 #include <config.h>
 #include <asm/io.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/hardware.h>
 #include <asm/types.h>
 #include <asm/io.h>

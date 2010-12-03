@@ -12,8 +12,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
-#include <asm/arch/common.h>
-#include <asm/arch/hardware.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/prcmu.h>
 
 #ifdef CONFIG_ARCH_CPU_INIT

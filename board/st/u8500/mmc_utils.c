@@ -22,6 +22,7 @@
 #include <linux/ctype.h>
 
 #include <asm/arch/common.h>
+#include <asm/arch/cpu.h>
 #include <command.h>
 #include <mmc.h>
 #include <fat.h>

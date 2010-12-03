@@ -9,6 +9,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/gpio.h>
 #include <tc35892.h>
 #include <malloc.h>

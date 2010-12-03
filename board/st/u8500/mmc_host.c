@@ -15,6 +15,7 @@
 #define DBG_LVL_VERBOSE	(2)
 
 #include <asm/arch/common.h>
+#include <asm/arch/cpu.h>
 #include <mmc.h>
 #include <asm/arch/gpio.h>
 #include "mmc_host.h"
