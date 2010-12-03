@@ -22,6 +22,7 @@
 
 #include <common.h>
 #include <asm/io.h>
+#include <asm/arch/common.h>
 #include <asm/arch/hardware.h>
 #include <boottime.h>
 

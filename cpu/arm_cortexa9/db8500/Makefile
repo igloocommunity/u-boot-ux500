@@ -25,9 +25,15 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)lib$(SOC).a
 
-COBJS	= timer.o interrupts.o
+# We want warnings free code.
+# Some generic include files have inline functions with unused parameters.
+CFLAGS	+= -Wall -Wextra -Werror -Wno-unused-parameter
+
+# Please keep one file per line and in alphabetical order
 COBJS	+= clock.o
+COBJS	+= interrupts.o
 COBJS	+= prcmu.o
+COBJS	+= timer.o
 
 SRCS	:= $(START:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
