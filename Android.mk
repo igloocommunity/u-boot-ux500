@@ -1,6 +1,5 @@
 #Android makefile to build u-boot as a part of Android Build
 
-ifeq ($(ENABLE_CR264527),true)
 # Give other modules a nice, symbolic name to use as a dependent
 # Yes, there are modules that cannot build unless uboot has
 # been built. Typical (only?) example: linux kernel (needs mkimage program)
@@ -61,5 +60,3 @@ installclean: installclean-uboot
 
 installclean-uboot:
 	rm -f u-boot.bin u-boot.map u-boot.srec
-
-endif
