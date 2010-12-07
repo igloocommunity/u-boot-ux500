@@ -137,8 +137,6 @@ static int mcde_error;
  */
 static volatile int data_init_flag = -1; /* -1 to get it into .data section */
 
-static void config_gpio(void);
-
 /* Get hold of gd pointer */
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -233,12 +231,8 @@ static int dss_init(void)
 		printf("Only HREF+ or V2 is supported\n");
 		goto mcde_error;
 	}
-	if (mcde_startup()) {
+	if (mcde_splash_image()) {
 		printf("startup failed\n");
-		goto mcde_error;
-	}
-	if (mcde_display_image()) {
-		printf("display_image failed\n");
 		goto mcde_error;
 	}
 

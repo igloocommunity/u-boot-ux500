@@ -110,6 +110,7 @@ int mcde_dsi_dcs_write(struct mcde_port *port, u8 cmd, u8* data, int len);
 
 /* MCDE */
 
+int mcde_turn_on_display(void);
 int mcde_init(u8 num_data_lanes);
 void mcde_exit(void);
 

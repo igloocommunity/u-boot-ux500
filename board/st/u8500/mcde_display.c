@@ -92,7 +92,7 @@ static int mcde_enable_gpio(void)
 #define DCS_CMD_EXIT_SLEEP_MODE       0x11
 #define DCS_CMD_SET_DISPLAY_ON        0x29
 
-static int mcde_turn_on_display(void)
+int mcde_turn_on_display(void)
 {
 	int ret = 0;
 	dbg_printk("Turn on display!\n");
@@ -272,8 +272,7 @@ static int mcde_display_power_init(void)
 	return 0;
 }
 
-
-int mcde_startup(void)
+int mcde_splash_image(void)
 {
 	u8 num_dsilinks;
 	int ret;
@@ -296,18 +295,16 @@ int mcde_startup(void)
 		printf("%s:Failed to acquire MCDE channel\n", __func__);
 		goto get_chnl_failed;
 	}
-
-	ret = mcde_turn_on_display();
-	if (ret)
-		goto display_power_mode_failed;
 	mcde_chnl_set_update_area(chnl, 0, 0, main_display.native_x_res,
 						main_display.native_y_res);
 	mcde_chnl_set_pixel_format(chnl, main_display.port_pixel_format);
 	mcde_chnl_apply(chnl);
 
+	/* Everything setup ok, display image */
+	ret = mcde_display_image(chnl);
+
 	return ret;
 
-display_power_mode_failed:
 get_chnl_failed:
 display_power_failed:
 enable_gpio_failed:
@@ -315,102 +312,3 @@ enable_gpio_failed:
 	return ret;
 }
 
-int mcde_display_image(void)
-{
-	struct mcde_ovly_state *ovly;
-	u32 xpos = 0;
-	u32 ypos = 0;
-	int ret;
-	struct mmc *emmc_dev;
-	u32 address = CONFIG_SYS_VIDEO_FB_ADRS;
-
-#ifdef CONFIG_SYS_VIDEO_USE_GIMP_HEADER
-	u32	i = 0;
-	u8 	pixels[3];
-	u16	pixel;
-	u16	*sp;
-#endif
-
-	ovly = mcde_ovly_get(chnl);
-	if (IS_ERR(ovly)) {
-		ret = PTR_ERR(ovly);
-		printf("Failed to get channel\n");
-		return -ret;
-	}
-
-	emmc_dev = find_mmc_device(CONFIG_EMMC_DEV_NUM);
-	if (emmc_dev == NULL) {
-		printf("mcde_display_image: emmc not found.\n");
-		return 1;
-	}
-
-	if (toc_load_toc_entry(&emmc_dev->block_dev, MCDE_TOC_SPLASH_NAME, 0,
-			       0, address)) {
-		printf("mcde_display_image: no splash image found.\n");
-		return 1;
-	}
-
-#ifdef CONFIG_SYS_VIDEO_USE_GIMP_HEADER
-	/* Add the image data */
-	sp = (u16 *)CONFIG_SYS_VIDEO_FB_ADRS;
-	for (i = 0; i < ((MCDE_VIDEO_LOGO_WIDTH*MCDE_VIDEO_LOGO_HEIGHT)); i++) {
-		HEADER_PIXEL(header_data, pixels);
-		pixels[0] >>= 3; /* Keep 5 bits red */
-		pixels[1] >>= 2; /* 6 bits green */
-		pixels[2] >>= 3; /* and 5 bits blue */
-		pixel = (pixels[0] << 11) | (pixels[1] << 5) | pixels[2];
-		*sp++ = pixel;
-	}
-	mcde_ovly_set_source_buf(ovly, CONFIG_SYS_VIDEO_FB_ADRS);
-#else
-	mcde_ovly_set_source_buf(ovly, (u32)address);
-#endif
-	mcde_ovly_set_source_info(ovly, (MCDE_VIDEO_LOGO_WIDTH*2),
-					main_display.default_pixel_format);
-	mcde_ovly_set_source_area(ovly, 0, 0, MCDE_VIDEO_LOGO_WIDTH,
-						MCDE_VIDEO_LOGO_HEIGHT);
-	if (MCDE_VIDEO_LOGO_WIDTH == main_display.native_x_res)
-		xpos = 0;
-	else
-		xpos = (main_display.native_x_res - MCDE_VIDEO_LOGO_WIDTH) / 2;
-
-	if (MCDE_VIDEO_LOGO_HEIGHT == main_display.native_y_res)
-		ypos = 0;
-	else
-		ypos = (main_display.native_y_res - MCDE_VIDEO_LOGO_HEIGHT) / 2;
-
-	mcde_ovly_set_dest_pos(ovly, xpos, ypos, 0);
-	mcde_ovly_apply(ovly);
-	mcde_chnl_update(chnl);
-	/* Wait for refresh to be finished */
-	mdelay(CONFIG_SYS_MCDE_REFRESH_TIME);
-	mcde_exit();
-	return 0;
-}
-
-/*
- * command line commands
- */
-
-
-int mcde_power_up(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
-{
-	return mcde_startup();
-}
-
-int mcde_disply_bitmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
-{
-	return mcde_display_image();
-}
-
-U_BOOT_CMD(
-	mcde_power_up,	1,	1,	mcde_power_up,
-	"Power up display",
-	""
-);
-
-U_BOOT_CMD(
-	mcde_display,	1,	1,	mcde_disply_bitmap,
-	"Display bitmap",
-	""
-);

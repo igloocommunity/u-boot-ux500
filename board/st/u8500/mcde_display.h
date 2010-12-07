@@ -30,8 +30,8 @@ struct mcde_display_device {
 	u16 native_y_res;
 };
 
-int mcde_startup(void);
-int mcde_display_image(void);
+int mcde_splash_image(void);
+int mcde_display_image(struct mcde_chnl_state *chnl);
 
 #endif /* !defined(__MCDE_UTILS_H) */
 
