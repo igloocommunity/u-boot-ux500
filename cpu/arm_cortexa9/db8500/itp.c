@@ -12,86 +12,13 @@
 #include <asm/arch/ab8500.h>
 #include <asm/arch/itp.h>
 #include <asm/arch/cspsa_fp.h>
+#include <asm/arch/sec_bridge.h>
 
-#define SEC_ROM_FORCE_CLEAN_MASK	0x0020
-#define SEC_ROM_RET_OK			0x01
-#define ISSWAPI_SECURE_LOAD		0x10000002
-#define ISSWAPI_FLUSH_BOOT_CODE		0x11000003
 #define IPL_ITEM_ID			0x02
-
-typedef u32 (*boot_rom_bridge_func_t)(const u32 , const u32, const va_list);
-
-static boot_rom_bridge_func_t hw_sec_rom_pub_bridge;
-
-struct sec_rom_cut_desc {
-	u32 cutid_addr;
-	u32 cutid;
-	u32 bridge_func;
-};
-
-static const struct sec_rom_cut_desc cuttable[] = {
-	{ 0x9001DBF4, 0x008500B0, 0x90017300 },
-	{ 0x9001FFF4, 0x008500A1, 0x90018300 },
-	{ 0x9001FFF4, 0x005500A0, 0x90018300 },
-	{ 0x9001FFF4, 0x008500A0, 0x90018300 },
-};
 
 static u32 cspsa_key;
 
-static u32 itp_call_secure_service(const u32 serviceid,
-				   const u32 secureconfig,
-				   ...)
-{
-	va_list ap;
-	u32 returnvalue;
 
-	va_start(ap, secureconfig);
-
-	returnvalue = hw_sec_rom_pub_bridge(serviceid,
-					    secureconfig,
-					    ap);
-
-	va_end(ap);
-	return returnvalue;
-}
-
-static int itp_init_bridge(void)
-{
-	u8 cutnb = 0;
-
-	hw_sec_rom_pub_bridge = NULL;
-
-	while ((cutnb < ARRAY_SIZE(cuttable)) &&
-	       (cuttable[cutnb].cutid != *(u32 *)(cuttable[cutnb].cutid_addr)))
-			cutnb++;
-
-	if (cutnb < ARRAY_SIZE(cuttable)) {
-		hw_sec_rom_pub_bridge =
-			(boot_rom_bridge_func_t)cuttable[cutnb].bridge_func;
-		return 0;
-	}
-
-	printf("itp_init_bridge: cutid not found\n");
-	return 1;
-}
-
-static int itp_flush_issw(void)
-{
-	u32 ret;
-
-	ret = itp_call_secure_service(ISSWAPI_FLUSH_BOOT_CODE,
-				      SEC_ROM_FORCE_CLEAN_MASK,
-				      0,
-				      0);
-
-	if (ret != SEC_ROM_RET_OK) {
-		printf("itp_flush_issw: ISSWAPI_FLUSH_BOOT_CODE: %d\n",
-			ret);
-		return 1;
-	}
-
-	return 0;
-}
 
 static int itp_load_ipl(block_dev_desc_t *block_dev)
 {
@@ -113,10 +40,10 @@ static int itp_load_ipl(block_dev_desc_t *block_dev)
 	/* Get CutID */
 	ab8500_cutid = ab8500_read(AB8500_MISC, AB8500_REV_REG);
 
-	returnvalue = itp_call_secure_service((u32)ISSWAPI_SECURE_LOAD,
-					      SEC_ROM_FORCE_CLEAN_MASK,
-					      IPL_ITEM_ID,
-					      ab8500_cutid);
+	returnvalue = sec_bridge_call_secure_service((u32)ISSWAPI_SECURE_LOAD,
+						SEC_ROM_FORCE_CLEAN_MASK,
+						IPL_ITEM_ID,
+						ab8500_cutid);
 	if (returnvalue != SEC_ROM_RET_OK) {
 		printf("itp_load_ipl: ISSWAPI_SECURE_LOAD: %d\n",
 			returnvalue);
@@ -186,7 +113,7 @@ int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 
 	debug("\nitp_load_itp_and_modem\n");
 
-	if (itp_init_bridge()) {
+	if (sec_bridge_init_bridge()) {
 		retval = 1;
 		goto exit;
 	}
@@ -216,8 +143,7 @@ int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 
 exit:
 	/* Always Flush */
-	if (hw_sec_rom_pub_bridge != NULL)
-		itp_flush_issw();
+	sec_bridge_flush_issw();
 
 	if ((cspsa_key & ITP_LOAD_ITP) && !retval)
 		/* U-boot execution will end here */
