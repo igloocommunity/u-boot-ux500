@@ -10,8 +10,8 @@
 #include <part.h>
 #include <mmc.h>
 #include <asm/arch/ab8500.h>
-#include "itp.h"
-#include "cspsa_fp.h"
+#include <asm/arch/itp.h>
+#include <asm/arch/cspsa_fp.h>
 
 #define SEC_ROM_FORCE_CLEAN_MASK	0x0020
 #define SEC_ROM_RET_OK			0x01

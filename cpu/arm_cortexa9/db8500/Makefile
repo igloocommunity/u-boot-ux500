@@ -36,6 +36,9 @@ COBJS	+= interrupts.o
 COBJS	+= prcmu.o
 COBJS	+= timer.o
 
+COBJS-$(CONFIG_ITP_LOAD) += itp.o cspsa_fp.o
+COBJS	+= $(COBJS-y)
+
 SRCS	:= $(START:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
 START	:= $(addprefix $(obj),$(START))

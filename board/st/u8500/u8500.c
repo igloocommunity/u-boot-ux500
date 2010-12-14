@@ -16,8 +16,8 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/ab8500.h>
 #include <asm/arch/prcmu.h>
+#include <asm/arch/itp.h>
 #include <tc35892.h>
-#include "itp.h"
 
 #include <asm/arch/common.h>
 

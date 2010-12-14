@@ -13,7 +13,7 @@
  *
  */
 
-#include "cspsa_fp.h"
+#include <asm/arch/cspsa_fp.h>
 #include <malloc.h>
 #include <part.h>
 
