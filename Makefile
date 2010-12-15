@@ -3183,6 +3183,9 @@ u8500_auto_config:
 		$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st db8500 ; \
 	fi
 
+u8500_secboot_config: u8500_def_config
+	echo "#define CONFIG_SECURE_KERNEL_BOOT" >> $(obj)include/config.h
+
 #########################################################################
 ## XScale Systems
 #########################################################################

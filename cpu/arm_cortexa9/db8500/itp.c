@@ -55,11 +55,16 @@ static int itp_load_ipl(block_dev_desc_t *block_dev)
 
 static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 			      const char *partname,
+			      int verify_signature,
 			      u32 *loadaddress)
 {
 	u32 n;
 	u32 offset;
 	u32 size;
+#if defined(CONFIG_SECURE_KERNEL_BOOT)
+	u32 real_loadaddr = 0;
+	u32 size_in_bytes = 0;
+#endif
 
 	debug("itp_load_toc_entry: Loading %s\n", partname);
 
@@ -68,6 +73,23 @@ static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 		printf("itp_load_toc_entry: %s not present\n", partname);
 		return 1;
 	}
+
+#if defined(CONFIG_SECURE_KERNEL_BOOT)
+	if (verify_signature) {
+		size_in_bytes = size;
+		real_loadaddr = *loadaddress;
+		/*
+		 * We might need an offset, since ISSW doesn't support
+		 * address 0.
+		 */
+		if (*loadaddress == 0)
+			*loadaddress = *loadaddress + block_dev->blksz;
+	}
+#else
+	if (verify_signature) {
+		debug("itp_load_toc_entry: secure boot disabled so verify signature has no effect\n");
+	}
+#endif
 
 	size = (size / block_dev->blksz) +
 	       ((size % block_dev->blksz) ? 1 : 0);
@@ -81,6 +103,27 @@ static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 		printf("itp_load_toc_entry: Failed to load %s!\n", partname);
 		return 1;
 	}
+
+#if defined(CONFIG_SECURE_KERNEL_BOOT)
+	if (verify_signature) {
+		debug("itp_load_toc_entry: Verifying image...\n");
+
+		if (sec_bridge_verify_itp_image(loadaddress)) {
+			printf("itp_load_toc_entry: Failed to verify image %s!\n", partname);
+			return 1;
+		}
+
+		if (real_loadaddr != *loadaddress) {
+			/*
+			 * Loadaddr is moved, need to move it back to ensure
+			 * binary is not put out of order...
+			 */
+			memmove((void *)(real_loadaddr), (void*)*loadaddress, size_in_bytes);
+			*loadaddress = real_loadaddr;
+		}
+	}
+
+#endif
 
 	return 0;
 }
@@ -121,6 +164,7 @@ int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 	if (cspsa_key & ITP_LOAD_MODEM) {
 		if (itp_load_toc_entry(block_dev,
 				       ITP_TOC_MODEM_NAME,
+				       0, /* verify_signature false */
 				       &loadaddress)) {
 			retval = 1;
 			goto exit;
@@ -135,6 +179,7 @@ int itp_load_itp_and_modem(block_dev_desc_t *block_dev)
 	if (cspsa_key & ITP_LOAD_ITP) {
 		if (itp_load_toc_entry(block_dev,
 				       ITP_TOC_ITP_NAME,
+				       1, /* verify_signature true */
 				       &loadaddress)) {
 			retval = 1;
 			goto exit;

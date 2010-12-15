@@ -867,6 +867,18 @@ static void *boot_get_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]
 	/* copy from dataflash if needed */
 	img_addr = genimg_get_image (img_addr);
 
+#if defined(CONFIG_SECURE_KERNEL_BOOT)
+	{
+		/*
+		 * Extern declaration could more nicely done, but keeping
+		 * it here to have as low impact as possible...
+		 */
+		extern int sec_bridge_verify_kernel_image(u32 *img_addr);
+		if (sec_bridge_verify_kernel_image ((u32*)&img_addr))
+			img_addr = 0;
+	}
+#endif
+
 	/* check image type, for FIT images get FIT kernel node */
 	*os_data = *os_len = 0;
 	switch (genimg_get_format ((void *)img_addr)) {

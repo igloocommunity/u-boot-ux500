@@ -37,7 +37,7 @@ cp %{SOURCE1} .
 
 %build
 #Make default config for variant
-make %{variant_name}_def_config
+make %{variant_name}_secboot_config
 
 #Build-id needed/wanted by rpmbuild
 export LDFLAGS="$LDFLAGS --build-id"
