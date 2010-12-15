@@ -30,7 +30,14 @@ struct mcde_display_device {
 	u16 native_y_res;
 };
 
+extern struct mcde_display_device main_display;
+extern struct mcde_display_generic_platform_data main_display_data;
+extern struct mcde_video_mode video_mode;
+extern struct mcde_platform_data platform_data;
+
 int mcde_splash_image(void);
+int mcde_startup_dpi(struct mcde_platform_data *pdata);
+int mcde_startup_dsi(struct mcde_platform_data *pdata);
 int mcde_display_image(struct mcde_chnl_state *chnl);
 
 #endif /* !defined(__MCDE_UTILS_H) */

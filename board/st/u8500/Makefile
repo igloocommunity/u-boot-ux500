@@ -28,7 +28,8 @@ LIB	= $(obj)lib$(BOARD).a
 COBJS	:= u8500.o u8500_i2c.o mmc_host.o mmc_utils.o ab8500vibra.o cmd_cdump.o
 SOBJS	:= mmc_fifo.o
 
-COBJS-$(CONFIG_VIDEO_LOGO) += mcde_display.o mcde_hw.o mcde_display_image.o
+COBJS-$(CONFIG_VIDEO_LOGO) += mcde_display.o mcde_display_dsi.o mcde_display_dpi.o
+COBJS-$(CONFIG_VIDEO_LOGO) += mcde_hw.o mcde_display_image.o
 
 COBJS	+= $(COBJS-y)
 

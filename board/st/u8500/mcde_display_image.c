@@ -13,13 +13,9 @@
 #include <part.h>
 #include <mmc.h>
 #include <bmp_layout.h>
+#include <asm/arch/common.h>
 #include "mcde.h"
 #include "mcde_display.h"
-
-#define DEBUG_THIS_FILE 0
-#define dbg_printk(format, arg...)			\
-	if (DEBUG_THIS_FILE)				\
-		printf("mcde: " format, ##arg)
 
 /* bmp compression constants */
 #define BI_RGB		0
@@ -156,8 +152,7 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 	u32 xpos = 0;
 	u32 ypos = 0;
 
-	dbg_printk("%s: Enter\n", __func__);
-
+	debug("%s: Enter\n", __func__);
 	emmc_dev = find_mmc_device(CONFIG_EMMC_DEV_NUM);
 	if (emmc_dev == NULL) {
 		printf("mcde_display_image: emmc not found.\n");
@@ -172,7 +167,7 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 
 	/* get bmp_image */
 	bmp_start = (u8 *)address;
-	dbg_printk("%s: bmp start = 0x%p\n", __func__, (void *)bmp_start);
+	debug("%s: bmp start = 0x%p\n", __func__, (void *)bmp_start);
 
 	/* check BMP magic */
 	bmp_header = (struct bmp_header *)bmp_start;
@@ -184,32 +179,32 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 
 	/* get offset to bitmap-data from the BMP header */
 	bmp_offset = read_unaligned32(&bmp_header->data_offset);
-	dbg_printk("bmp filesz = %d\n",
+	debug("bmp filesz = %d\n",
 		read_unaligned32(&bmp_header->file_size));
-	dbg_printk("bmp offset = %d\n", bmp_offset);
+	debug("bmp offset = %d\n", bmp_offset);
 
 	dib_width = read_unaligned32((uint32_t *)&bmp_header->width);
 	dib_height = read_unaligned32((uint32_t *)&bmp_header->height);
 	dib_bytesz = read_unaligned32(&bmp_header->image_size);
 	dib_bitspp = bmp_header->bit_count;
 	dib_header_size = read_unaligned32(&bmp_header->size);
-	dbg_printk("dib header_sz = %d\n", dib_header_size);
-	dbg_printk("dib width = %d\n", dib_width);
-	dbg_printk("dib height = %d\n", dib_height);
-	dbg_printk("dib nplanes = %d\n", bmp_header->planes);
-	dbg_printk("dib bitspp = %d\n", dib_bitspp);
+	debug("dib header_sz = %d\n", dib_header_size);
+	debug("dib width = %d\n", dib_width);
+	debug("dib height = %d\n", dib_height);
+	debug("dib nplanes = %d\n", bmp_header->planes);
+	debug("dib bitspp = %d\n", dib_bitspp);
 	dib_compression = read_unaligned32(&bmp_header->compression);
-	dbg_printk("dib compress_type = %d\n", dib_compression);
-	dbg_printk("dib dib_bytesz = %d\n", dib_bytesz);
+	debug("dib compress_type = %d\n", dib_compression);
+	debug("dib dib_bytesz = %d\n", dib_bytesz);
 
 	/* calculate palette address */
 	palette = ((u8 *)&bmp_header->size + dib_header_size);
 	palette_size = ((bmp_start + bmp_offset) - palette);
-	dbg_printk("palette size = %d\n", palette_size);
+	debug("palette size = %d\n", palette_size);
 	/* if same as image start: no palette */
 	if (palette_size == 0)
 		palette = NULL;
-	dbg_printk("palette = 0x%08x\n", (u32)palette);
+	debug("palette = 0x%08x\n", (u32)palette);
 
 	/* check validity */
 	if ((dib_width > main_display.native_x_res) ||
@@ -227,7 +222,7 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 	src_pitch = dib_width * dib_bitspp / 8;
 	src_pitch = (src_pitch + 3) >> 2;	/* pad to 32-bit boundary */
 	src_pitch <<= 2;
-	dbg_printk("src_pitch=%d\n", src_pitch);
+	debug("src_pitch=%d\n", src_pitch);
 
 	if (dib_compression != BI_RGB && dib_compression != BI_BITFIELDS)
 		err++;
@@ -239,12 +234,12 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 	dst_pitch = dib_width * 16 / 8;		/* dest is 16 bpp */
 	dst_pitch = (dst_pitch + 7) >> 3;	/* pad to 64-bit boundary */
 	dst_pitch <<= 3;
-	dbg_printk("dst_pitch=%d\n", dst_pitch);
+	debug("dst_pitch=%d\n", dst_pitch);
 
 	/* image is stored upside-down in the file */
 	bmp_dst = ovly_mem;
 	bmp_src = (u8 *)(bmp_start + bmp_offset);
-	dbg_printk("bmp copy dst=0x%08x, src=0x%08x, len=%d\n",
+	debug("bmp copy dst=0x%08x, src=0x%08x, len=%d\n",
 		(uint32_t)bmp_dst, (uint32_t)bmp_src, dib_bytesz);
 
 	switch (dib_bitspp) {
@@ -265,20 +260,20 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 		printf("%s: unsupported bitspp=%d\n", __func__, dib_bitspp);
 		return -EINVAL;
 	}
-	dbg_printk("%s: image OK\n", __func__);
+	debug("%s: image OK\n", __func__);
 
+	/* dss_enable_overlay */
 	ovly = mcde_ovly_get(chnl);
 	if (IS_ERR(ovly)) {
 		err = PTR_ERR(ovly);
 		printf("%s: Failed to get channel\n", __func__);
 		return -err;
 	}
-	dbg_printk("ovly=%p ovly_mem=%p\n", (void *)ovly, (void *)ovly_mem);
+	debug("ovly=%p ovly_mem=%p\n", (void *)ovly, (void *)ovly_mem);
 	mcde_ovly_set_source_buf(ovly, (u32)ovly_mem);
 	mcde_ovly_set_source_info(ovly, dst_pitch,
 					main_display.default_pixel_format);
 	mcde_ovly_set_source_area(ovly, 0, 0, dib_width, dib_height);
-
 	if (dib_width == main_display.native_x_res)
 		xpos = 0;
 	else
@@ -288,11 +283,8 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 		ypos = 0;
 	else
 		ypos = (main_display.native_y_res - dib_height) / 2;
-
 	mcde_ovly_set_dest_pos(ovly, xpos, ypos, 0);
-
 	mcde_ovly_apply(ovly);
-	mcde_chnl_update(chnl);
 
 	return mcde_turn_on_display();
 }

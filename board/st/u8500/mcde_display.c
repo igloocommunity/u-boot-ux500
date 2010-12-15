@@ -7,38 +7,32 @@
 * License terms: GNU General Public License (GPL), version 2.
 */
 
-
 #include <common.h>
 #include <command.h>
+#include <malloc.h>
+#include <asm/arch/common.h>
+#include <asm/arch/ab8500.h>
+#include <linux/err.h>
+#include <tc35892.h>	/* Needed for DSI, to be removed */
+#include "mcde.h"
+#include "mcde_regs.h"
 #include "mcde_display.h"
 #include "dsilink_regs.h"
-#include <tc35892.h>
-#include "mcde_regs.h"
-#include <malloc.h>
-#include "mcde.h"
-#include <linux/err.h>
-#include <asm/arch/ab8500.h>
-#include <asm/arch/common.h>
-#include <part.h>
-#include <mmc.h>
-
-#define DEBUG 0
-#define dbg_printk(format, arg...)			\
-	if (DEBUG)					\
-		printf("mcde: " format, ##arg)		\
 
 static struct mcde_chnl_state *chnl;
 
+#if CONFIG_SYS_DISPLAY_DSI
 static struct mcde_port port0 = {
 	.type = MCDE_PORTTYPE_DSI,
 	.mode = MCDE_PORTMODE_CMD,
-	.ifc = 0,
+	.ifc = 1,
 	.link = 0,
 	.sync_src = MCDE_SYNCSRC_BTA,
 	.phy = {
 		.dsi = {
 			.virt_id = 0,
 			.num_data_lanes = 2,
+			.ui = 9,
 		},
 	},
 };
@@ -48,266 +42,182 @@ struct mcde_display_generic_platform_data main_display_data = {
 	.reset_delay = 10,
 };
 
+struct mcde_platform_data platform_data = {
+	0,
+};
+
+struct mcde_video_mode video_mode = {
+	.xres = CONFIG_SYS_DISPLAY_NATIVE_X_RES,
+	.yres = CONFIG_SYS_DISPLAY_NATIVE_Y_RES,
+	.pixclock = 37037,	/* from kernel */
+	.interlaced = 0,
+	.bckcol = {255, 255, 255}, /* R, G, B */
+};
+
 struct mcde_display_device main_display = {
 	.port = &port0,
-	.chnl_id = MCDE_CHNL_C0,
-	.fifo = MCDE_FIFO_A,
+	.chnl_id = MCDE_CHNL_A,
+	.fifo = MCDE_FIFO_C0,
 	.default_pixel_format = MCDE_OVLYPIXFMT_RGB565,
 	.port_pixel_format = MCDE_PORTPIXFMT_DSI_24BPP,
 	.native_x_res = CONFIG_SYS_DISPLAY_NATIVE_X_RES,
 	.native_y_res = CONFIG_SYS_DISPLAY_NATIVE_Y_RES,
 };
+#endif
 
-static int mcde_enable_gpio(void)
-{
-	int ret;
-	dbg_printk("Enable GPIO pins!\n");
+#if CONFIG_SYS_DISPLAY_DPI
+/*
+ * STE VUIB card
+ */
+static struct mcde_port port0 = {
+	.type = MCDE_PORTTYPE_DPI,
+	.mode = MCDE_PORTMODE_VID,
+	.ifc = 0,
+	.link = 1,		/* DPI channel B can only be on link 1 */
+	.sync_src = MCDE_SYNCSRC_OFF,   /* sync from output formatter  */
+	.update_auto_trig = TRUE,
+	.phy = {
+		.dpi = {
+			.tv_mode = FALSE,
+			.clock_div = 2,
+			.polarity = DPI_ACT_LOW_VSYNC | DPI_ACT_LOW_HSYNC,
+		},
+	},
+};
 
-	/* Only main display should be initialized */
-	ret = tc35892_gpio_dir(CONFIG_SYS_I2C_GPIOE_ADDR,
-				main_display_data.reset_gpio, 1);
-	if (ret) {
-		printf("%s:Could not set direction for gpio \n", __func__);
-		return -EINVAL;
-	}
-	ret = tc35892_gpio_set(CONFIG_SYS_I2C_GPIOE_ADDR,
-				main_display_data.reset_gpio, 0);
-	if (ret) {
-		printf("%s:Could reset gpio \n", __func__);
-		return -EINVAL;
-	}
-	mdelay(main_display_data.reset_delay);
-	ret = tc35892_gpio_set(CONFIG_SYS_I2C_GPIOE_ADDR,
-				main_display_data.reset_gpio, 1);
-	if (ret) {
-		printf("%s:Could set gpior\n", __func__);
-		return -EINVAL;
-	}
-	mdelay(main_display_data.reset_delay);
+struct mcde_display_generic_platform_data main_display_data = {
+	0,
+};
 
-	dbg_printk("All needed GPIOS enabled!\n");
-	return 0;
-}
+struct mcde_platform_data platform_data = {
+	/* DPI */
+	/*
+	 * [0] = 3: 24 bits DPI: connect LSB Ch B to D[0:7]
+	 * [3] = 4: 24 bits DPI: connect MID Ch B to D[24:31]
+	 * [4] = 5: 24 bits DPI: connect MSB Ch B to D[32:39]
+	 *
+	 * [1] = 3: TV out     : connect LSB Ch B to D[8:15]
+	 */
+#define DONT_CARE 0
+	.outmux = { 3, 3, DONT_CARE, 4, 5 },	/* vuib500 */
+#undef DONT_CARE
+	.syncmux = 0x01,			/* vuib500 */
+};
 
-#define DCS_CMD_EXIT_SLEEP_MODE       0x11
-#define DCS_CMD_SET_DISPLAY_ON        0x29
+#define DPI_PIXCLK_FREQ	25000000
+
+struct mcde_video_mode video_mode = {
+	.hbp = 40,	/* Horizontal Back Porch */
+	.hfp = 8,	/* Horizontal Front Porch */
+	.hsw = 96,	/* Horizontal Synchronization pulse Width */
+	.vbp1 = 25,	/* Vertical Back Porch 1 */
+	.vfp1 = 2,	/* Vertical Front Porch 1 */
+	.vbp2 = 0,	/* Vertical Back Porch 2 */
+	.vfp2 = 0,	/* Vertical Front Porch 2 */
+	.vsw = 2,	/* Vertical Synchronization pulse Width */
+	.pixclock = (int)(1e+12 * (1.0 / DPI_PIXCLK_FREQ)),
+	.interlaced = 0,
+	.bckcol = {255, 255, 255}, /* R, G, B */
+};
+
+struct mcde_display_device main_display = {
+	.port = &port0,
+	.chnl_id = MCDE_CHNL_A,
+	.fifo = MCDE_FIFO_A,
+	.default_pixel_format = MCDE_OVLYPIXFMT_RGB565,
+	.port_pixel_format = MCDE_PORTPIXFMT_DPI_24BPP,
+	.native_x_res = CONFIG_SYS_DISPLAY_NATIVE_X_RES,
+	.native_y_res = CONFIG_SYS_DISPLAY_NATIVE_Y_RES,
+};
+#endif
 
 int mcde_turn_on_display(void)
 {
-	int ret = 0;
-	dbg_printk("Turn on display!\n");
-	ret = mcde_dsi_dcs_write(main_display.port,
-				DCS_CMD_EXIT_SLEEP_MODE, NULL, 0);
-	if (!ret) {
-		dbg_printk("mcde_dsi_dcs_write "
-				"DCS_CMD_EXIT_SLEEP_MODE success!\n");
-		ret = mcde_dsi_dcs_write(main_display.port,
-				DCS_CMD_SET_DISPLAY_ON,  NULL, 0);
-		if (!ret)
-			dbg_printk("mcde_dsi_dcs_write "
-				"DCS_CMD_SET_DISPLAY_ON success!\n");
-	}
+	debug("%s: Enter\n", __func__);
 
-	return ret;
-}
-
-/* aux supplies */
-#define MASK_LDO_VAUX1		(0x3)
-#define MASK_LDO_VAUX1_SHIFT	(0x0)
-#define VAUXSEL_VOLTAGE_MASK	(0xf)
-
-#define VANA_ENABLE_IN_HP_MODE	0x05
-
-#define ENABLE_PWM1		0x01
-#define PWM_DUTY_LOW_1024_1024	0xFF
-#define PWM_DUTY_HI_1024_1024	0x03
-
-/*
- * regulator layout
- * @voltage: supported voltage
- * @regval: register value to be written
- */
-struct regulator_voltage {
-	int voltage;
-	int regval;
-};
-
-/* voltage table for VAUXn regulators */
-static struct regulator_voltage vauxn_table[] = {
-	{ .voltage = 1100000, .regval  = 0x0, },
-	{ .voltage = 1200000, .regval  = 0x1, },
-	{ .voltage = 1300000, .regval  = 0x2, },
-	{ .voltage = 1400000, .regval  = 0x3, },
-	{ .voltage = 1500000, .regval  = 0x4, },
-	{ .voltage = 1800000, .regval  = 0x5, },
-	{ .voltage = 1850000, .regval  = 0x6, },
-	{ .voltage = 1900000, .regval  = 0x7, },
-	{ .voltage = 2500000, .regval  = 0x8, },
-	{ .voltage = 2650000, .regval  = 0x9, },
-	{ .voltage = 2700000, .regval  = 0xa, },
-	{ .voltage = 2750000, .regval  = 0xb, },
-	{ .voltage = 2800000, .regval  = 0xc, },
-	{ .voltage = 2900000, .regval  = 0xd, },
-	{ .voltage = 3000000, .regval  = 0xe, },
-	{ .voltage = 3300000, .regval  = 0xf, },
-};
-
-
-/*
- * This code is derived from the handling of AB8500_LDO_VAUX1 in
- * ab8500_ldo_is_enabled in Linux.
- */
-static int mcde_is_vaux1_enabled(void)
-{
-	int val;
-	val = ab8500_read(AB8500_REGU_CTRL2,
-			AB8500_REGU_VAUX12_REGU_REG);
-	if (val & MASK_LDO_VAUX1)
-		return TRUE;
-	return FALSE;
-}
-
-/*
- * This code is derived from the handling of AB8500_LDO_VAUX1 in
- * ab8500_ldo_get_voltage in Linux.
- */
-static int mcde_get_vaux1_voltage(void)
-{
-	int val;
-	val = ab8500_read(AB8500_REGU_CTRL2,
-		AB8500_REGU_VAUX1_SEL_REG);
-	return vauxn_table[val & VAUXSEL_VOLTAGE_MASK].voltage;
-}
-
-static int mcde_display_power_init(void)
-{
-	int val;
-	int i;
-
-	/*
-	 * On v1.1 HREF boards (HREF+) and V2 boards
-	 * Vaux1 needs to be enabled for the
-	 * display to work.  This is done by enabling the regulators in the
-	 * AB8500 via PRCMU I2C transactions.
-	 *
-	 * This code is derived from the handling of AB8500_LDO_VAUX1 in
-	 * ab8500_ldo_enable(), ab8500_ldo_disable() and
-	 * ab8500_get_best_voltage in Linux.
-	 *
-	 * Turn off and delay is required to have it work across soft reboots.
-	 */
-
-	val = ab8500_read(AB8500_REGU_CTRL2,
-		AB8500_REGU_VAUX12_REGU_REG);
-	if (val < 0) {
-		printf("Read vaux1 status failed\n");
-		return -EINVAL;
-	}
-
-	/* Turn off */
-	if (ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VAUX12_REGU_REG,
-			   val & ~MASK_LDO_VAUX1) < 0) {
-		printf("Turn off Vaux1 failed\n");
-		return -EINVAL;
-	}
-
-	udelay(10 * 1000);
-
-
-	/* Find voltage from vauxn table */
-	for (i = 0; i < ARRAY_SIZE(vauxn_table) ; i++) {
-		if (vauxn_table[i].voltage == CONFIG_SYS_DISPLAY_VOLTAGE) {
-			if (ab8500_write(AB8500_REGU_CTRL2,
-				AB8500_REGU_VAUX1_SEL_REG,
-				vauxn_table[i].regval) < 0) {
-				printf("AB8500_REGU_VAUX1_SEL_REG failed\n");
-				return -EINVAL;
-			}
-			break;
-		}
-	}
-
-	val = val & ~MASK_LDO_VAUX1;
-	val = val | (1 << MASK_LDO_VAUX1_SHIFT);
-
-	/* Turn on the supply */
-	if (ab8500_write(AB8500_REGU_CTRL2,
-			AB8500_REGU_VAUX12_REGU_REG, val) < 0) {
-		printf("Turn on Vaux1 failed\n");
-		return -EINVAL;
-	}
-
-	/*  DCI & CSI (DSI / PLL / Camera) */ /* Vana & Vpll HP mode */
-	if (ab8500_write(AB8500_REGU_CTRL2, AB8500_REGU_VPLLVANA_REGU_REG,
-						VANA_ENABLE_IN_HP_MODE) < 0) {
-		printf("Turn on Vana failed\n");
-		return -EINVAL;
-	}
-
-	/* Enable the PWM control for the backlight Main display */
-	if (ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
-							ENABLE_PWM1) < 0) {
-		printf("Enable PWM1 failed\n");
-		return -EINVAL;
-	}
-	if (ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL1_REG,
-						PWM_DUTY_LOW_1024_1024) < 0) {
-		printf("PWM_DUTY_LOW_1024_1024 failed\n");
-		return -EINVAL;
-	}
-	if (ab8500_write(AB8500_MISC, AB8500_PWM_OUT_CTRL2_REG,
-						PWM_DUTY_HI_1024_1024) < 0) {
-		printf("PWM_DUTY_HI_1024_1024 failed\n");
-		return -EINVAL;
-	}
-
-	if (!mcde_is_vaux1_enabled() || mcde_get_vaux1_voltage()
-					!= CONFIG_SYS_DISPLAY_VOLTAGE) {
-		printf("VAUX is %d and is set to %d V should be %d\n"
-			, mcde_is_vaux1_enabled(), mcde_get_vaux1_voltage()
-			, CONFIG_SYS_DISPLAY_VOLTAGE);
-		return -EINVAL;
-	}
-
-	return 0;
+	if (main_display.port->type == MCDE_PORTTYPE_DSI)
+		return mcde_turn_on_display_dsi();
+	else if (main_display.port->type == MCDE_PORTTYPE_DPI)
+		return mcde_turn_on_display_dpi();
+	return -ENODEV;	/* Should never occur */
 }
 
 int mcde_splash_image(void)
 {
-	u8 num_dsilinks;
-	int ret;
+	int ret = -ENODEV;
+	struct mcde_rectangle rect;
 
-	num_dsilinks = main_display.port->phy.dsi.num_data_lanes;
-	mcde_init(num_dsilinks);
-	ret = mcde_display_power_init();
-	if (ret)
-		goto display_power_failed;
-	mcde_enable_dss();
+	debug("%s: enter\n", __func__);
 
-	ret = mcde_enable_gpio();
-	if (ret)
-		goto enable_gpio_failed;
+	if (main_display.port->type == MCDE_PORTTYPE_DSI)
+		ret = mcde_startup_dsi(&platform_data);
+	else if (main_display.port->type == MCDE_PORTTYPE_DPI)
+		ret = mcde_startup_dpi(&platform_data);
+	if (ret != 0) {
+		printf("%s: mcde_startup... -> %d\n", __func__, ret);
+		return ret;
+	}
 
+	/* dss enable display */
 	chnl = mcde_chnl_get(main_display.chnl_id, main_display.fifo,
 							main_display.port);
 	if (IS_ERR(chnl)) {
 		ret = PTR_ERR(chnl);
-		printf("%s:Failed to acquire MCDE channel\n", __func__);
+		printf("%s: Failed to acquire MCDE channel ret=%d\n",
+				__func__, ret);
 		goto get_chnl_failed;
 	}
+
+	ret = mcde_chnl_set_power_mode(chnl, MCDE_DISPLAY_PM_STANDBY);
+	if (ret) {
+		printf("%s: mcde_chnl_set_power_mode() -> %d\n",
+				__func__, ret);
+		goto get_chnl_failed;
+	}
+
+	/* dss set video mode */
+	ret = mcde_chnl_set_video_mode(chnl, &video_mode);
+	if (ret < 0) {
+		printf("%s:Failed to set video mode on channel ret=%d\n",
+			__func__, ret);
+		goto set_video_mode_failed;
+	}
+
+	mcde_chnl_set_pixel_format(chnl, main_display.port_pixel_format);
 	mcde_chnl_set_update_area(chnl, 0, 0, main_display.native_x_res,
 						main_display.native_y_res);
-	mcde_chnl_set_pixel_format(chnl, main_display.port_pixel_format);
 	mcde_chnl_apply(chnl);
 
-	/* Everything setup ok, display image */
+	/* chnl setup ok, display image */
 	ret = mcde_display_image(chnl);
+	if (ret != 0) {
+		debug("%s: mcde_display_image() -> %d\n",
+			__func__, ret);
+	}
+
+	mcde_chnl_apply(chnl);
+	rect.x = 0;
+	rect.y = 0;
+	rect.w = main_display.native_x_res;
+	rect.h = main_display.native_y_res;
+	mcde_chnl_update(chnl, &rect);
+
+	ret = mcde_turn_on_display();
+	if (ret) {
+		printf("%s: mcde_turn_on_display() -> %d\n", __func__, ret);
+		goto get_chnl_failed;
+	}
+
+	ret = mcde_chnl_set_power_mode(chnl, MCDE_DISPLAY_PM_ON);
+	if (ret) {
+		printf("%s: mcde_chnl_set_power_mode() -> %d\n", __func__, ret);
+		goto get_chnl_failed;
+	}
 
 	return ret;
 
 get_chnl_failed:
-display_power_failed:
-enable_gpio_failed:
+set_video_mode_failed:
 	mcde_exit();
 	return ret;
 }
