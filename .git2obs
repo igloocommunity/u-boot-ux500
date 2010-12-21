@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Input to script, mandatory.
+[ -z "$TEMP_DIR" ]      && TEMP_DIR="./tmp"
+
+if [ -z "$1" ]; then
+   echo "usage: $(basename $0) spec-file"
+   exit 1
+else
+   SPEC="$1"
+fi
+
+
+# Grab archive name
+MODULE_ARCHIVE_NAME=$(basename "$(rpm --eval "$(head -n 200 $SPEC)" | grep -r "^Source0:" | sed -re 's/.*?:[\t ]+(.*?)[\t ]*/\1/g')")
+[ -z $MODULE_ARCHIVE_NAME ] && MODULE_ARCHIVE_NAME=$(basename "$(rpm --eval "$(head -n 200 $SPEC)" | grep -r "^Source:" | sed -re 's/.*?:[\t ]+(.*?)[\t ]*/\1/g')")
+MODULE_ARCHIVE_NAME="$(echo "$MODULE_ARCHIVE_NAME" | sed -e "s|%{name}|$MODULE_NAME|" -e "s|%{version}|$MODULE_VERSION|")"
+
+# Set prefix name
+[ -z "$PREFIX_NAME" ] && PREFIX_NAME="$(echo $MODULE_ARCHIVE_NAME | sed 's/.tar.bz2//g' | sed 's/.tar.gz//g')"
+
+mkdir -p $TEMP_DIR
+
+# Make the new archive
+if [[ "$MODULE_ARCHIVE_NAME" =~ bz2$ ]]; then
+   git archive --format=tar --prefix=$PREFIX_NAME/ HEAD | bzip2 > $TEMP_DIR/$MODULE_ARCHIVE_NAME
+elif [[ "$MODULE_ARCHIVE_NAME" =~ gz$ ]]; then
+   git archive --format=tar --prefix=$PREFIX_NAME/ HEAD | gzip > $TEMP_DIR/$MODULE_ARCHIVE_NAME
+else
+   echo "Warning: No archive in Source0, skipping archiving the git!"
+fi
+
+#Generate git version file
+TOPDIR="`pwd`"
+$TOPDIR/tools/setlocalversion $TOPDIR > $TEMP_DIR/localversion-meegobuild

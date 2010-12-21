@@ -10,6 +10,7 @@ Version: %{base_version}
 License: GPL
 URL: http://www.denx.de/wiki/U-Boot
 Source0: %{base_name}-%{base_version}.tar.bz2
+Source1: localversion-meegobuild
 Source100: %{base_name}-rpmlintrc
 
 Summary: Das U-Boot boot loader binary
@@ -32,6 +33,7 @@ U-Boot utility for creating bootable kernel images.
 
 %prep
 %setup -q -n %{base_name}-%{base_version}
+cp %{SOURCE1} .
 
 %build
 #Make default config for variant
