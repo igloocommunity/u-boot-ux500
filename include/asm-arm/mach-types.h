@@ -3167,6 +3167,9 @@ extern unsigned int __machine_arch_type;
 #define MACH_TYPE_PHILHWANI            3184
 #define MACH_TYPE_GSNCOMM              3185
 
+/* manually added, but official value */
+#define MACH_TYPE_HREFV60              3293	/* 0x0cdd */
+
 #ifdef CONFIG_ARCH_EBSA110
 # ifdef machine_arch_type
 #  undef machine_arch_type

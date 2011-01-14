@@ -39,9 +39,9 @@
 #define DMC_CTL_97			(DMC_BASE_ADDR + 0x184)
 
 /*
- * GPIO pin config for MOP500 board
+ * GPIO pin config common for MOP500/HREF boards
  */
-pin_cfg_t gpio_cfg[] = {
+pin_cfg_t gpio_cfg_common[] = {
 	/* I2C */
 	GPIO147_I2C0_SCL,
 	GPIO148_I2C0_SDA,
@@ -121,6 +121,20 @@ pin_cfg_t gpio_cfg[] = {
 	GPIO267_USB_DAT0,
 };
 
+/*
+ * GPIO pin config for HREF+ V60 board.
+ * Contains additional settings to common mop500 settings above.
+ */
+pin_cfg_t gpio_cfg_hrefv60[] = {
+       /* SDMMC */
+	GPIO169_GPIO	| PIN_OUTPUT_LOW,	/* SDMMC_Enable */
+	GPIO5_GPIO	| PIN_OUTPUT_LOW,	/* SDMMC_1V8_3V_SEL */
+	GPIO95_GPIO	| PIN_INPUT_PULLUP,	/* SDMMC_CD */
+
+	/* Display Interface */
+	GPIO65_GPIO	| PIN_OUTPUT_LOW,	/* DISP1 RST */
+	GPIO66_GPIO	| PIN_OUTPUT_LOW,	/* DISP2 RST */
+};
 
 int board_id;	/* set in board_late_init() */
 int errno;
@@ -185,7 +199,7 @@ int board_init(void)
 	gd->bd->bi_boot_params = 0x00000100;
 
 	/* Configure GPIO pins needed by U-boot */
-	db8500_gpio_config_pins(gpio_cfg, ARRAY_SIZE(gpio_cfg));
+	db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_common));
 
 	return 0;
 }
@@ -246,11 +260,52 @@ mcde_error:
 #endif
 
 /*
+ * probe_href - set board_id according to HREF version
+ *
+ * side-effect: configures additional GPIO pins if necessary.
+ */
+static void probe_href(void)
+{
+	uchar byte;
+
+	/*
+	 * Determine and set board_id
+	 * 0: mop500, 1: href500, 2: href500 2.0 V60 or later
+	 * Above boards have different GPIO expander chips which we can
+	 * distinguish by the chip id.
+	 * HREF+ 2.0 V60 and later have no GPIOE.
+	 *
+	 */
+
+	if (gd->bd->bi_arch_number == MACH_TYPE_U8500) {
+		(void) i2c_set_bus_num(0);
+		if (!i2c_read(CONFIG_SYS_I2C_GPIOE_ADDR, 0x80, 1, &byte, 1)) {
+			if (byte == 0x01)
+				board_id = 0;
+			else
+				board_id = 1;
+		} else
+			/* No GPIOE => HREF+ 2.0 V60 or later */
+			gd->bd->bi_arch_number = MACH_TYPE_HREFV60;
+	}
+
+	if (gd->bd->bi_arch_number == MACH_TYPE_HREFV60) {
+		db8500_gpio_config_pins(gpio_cfg_hrefv60,
+					ARRAY_SIZE(gpio_cfg_hrefv60));
+		board_id = 2;
+	}
+
+}
+
+/*
  * board_early_access - for functionality that needs to run before
  * board_late_init but after board_init and emmc init.
  */
 int board_early_access(block_dev_desc_t *block_dev)
 {
+
+	/* set board_id according to HREF version */
+	probe_href();
 
 	/*
 	 * Don't load itp, modem and splash if restarted (eg crashdump).
@@ -363,8 +418,7 @@ out:
 }
 #endif
 /*
- * called after all initialisation were done, but before the generic
- * mmc_initialize().
+ * Called after all initialisation was done.
  */
 int board_late_init(void)
 {
@@ -375,22 +429,13 @@ int board_late_init(void)
 	char strbuf[80];
 
 	/*
-	 * Determine and set board_id environment variable
-	 * 0: mop500, 1: href500
-	 * Above boards have different GPIO expander chips which we can
-	 * distinguish by the chip id.
-	 *
 	 * The board_id environment variable is needed for the Linux bootargs.
 	 */
-	(void) i2c_set_bus_num(0);
-	(void) i2c_read(CONFIG_SYS_I2C_GPIOE_ADDR, 0x80, 1, &byte, 1);
-	if (byte == 0x01) {
-		board_id = 0;
+	if (board_id == 0)
 		setenv("board_id", "0");
-	} else {
-		board_id = 1;
+	else
 		setenv("board_id", "1");
-	}
+
 #ifdef CONFIG_MMC
 	hrefplus_mmc_power_init();
 
@@ -403,16 +448,20 @@ int board_late_init(void)
 		byte = 0x0c;
 		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0x89, 1, &byte, 1);
 		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0x83, 1, &byte, 1);
-	} else {
-		/* HREF */
+	} else if (board_id == 1) {
+		/* HREF < V60 */
 		/* set the direction of GPIO KPY9 and KPY10 */
 		byte = 0x06;
 		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0xC8, 1, &byte, 1);
 		/* must be a multibyte access */
 		(void) i2c_write(CONFIG_SYS_I2C_GPIOE_ADDR, 0xC4, 1,
 						&byte_array[0], 2);
-	}
+	} else
+		/* HREF V60 and later */
+		/* enable SDMMC */
+		db8500_gpio_set_output(GPIO169_GPIO, 1);
 #endif /* CONFIG_MMC */
+
 #ifdef CONFIG_VIDEO_LOGO
 	if (mcde_error) {
 		setenv("startup_graphics", "0");
