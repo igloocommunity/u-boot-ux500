@@ -1686,16 +1686,6 @@ void update_mcde_registers(struct mcde_platform_data *pdata)
 		MCDE_CONF0_OUTMUX4(pdata->outmux[4]) |
 		pdata->syncmux);
 
-	/* Enable channel VCMP interrupts */
-	mcde_wreg(MCDE_IMSCPP,
-		MCDE_IMSCPP_VCMPAIM(true) |
-		MCDE_IMSCPP_VCMPBIM(true) |
-		MCDE_IMSCPP_VCMPC0IM(true) |
-		MCDE_IMSCPP_VCMPC1IM(true));
-
-	/* Enable overlay fetch done interrupts */
-	mcde_wfld(MCDE_IMSCOVL, OVLFDIM, 0x3f);
-
 	/* Setup sync pulse length */
 	mcde_wreg(MCDE_VSCRC0,
 		MCDE_VSCRC0_VSPMIN(1) |
@@ -1713,7 +1703,7 @@ int mcde_probe(u8 num_dsilinks, struct mcde_platform_data *pdata)
 	u8 minor_version;
 	u8 development_version;
 
-	printf("MCDE subsystem init begin\n");
+	debug("MCDE subsystem init begin\n");
 
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "No platform data\n");
@@ -1723,7 +1713,7 @@ int mcde_probe(u8 num_dsilinks, struct mcde_platform_data *pdata)
 		dsiio = malloc(num_dsilinks * sizeof(*dsiio));
 		if (!dsiio) {
 			ret = -ENOMEM;
-			printf("%s: Failed to malloc dsiio\n", __func__);
+			debug("%s: Failed to malloc dsiio\n", __func__);
 			goto failed_dsi_alloc;
 		}
 
@@ -1764,7 +1754,7 @@ int mcde_probe(u8 num_dsilinks, struct mcde_platform_data *pdata)
 		goto failed_hardware_version;
 	}
 
-	printf("MCDE subsystem init done\n");
+	debug("MCDE subsystem init done\n");
 	return 0;
 
 failed_hardware_version:
