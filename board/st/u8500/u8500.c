@@ -297,15 +297,40 @@ static void probe_href(void)
 
 }
 
+#define BATT_OK_SEL1_TH_F_MASK		0xF0
+#define BATT_OK_SEL1_TH_F_2V71		0x70
+
 /*
  * board_early_access - for functionality that needs to run before
  * board_late_init but after board_init and emmc init.
  */
 int board_early_access(block_dev_desc_t *block_dev)
 {
+	int ret;
+	int battok_regval;
 
 	/* set board_id according to HREF version */
 	probe_href();
+
+	/*
+	 * In AB8500 rev2.0, the cut-off voltage threshold is set too low
+	 * and the AB will power-off when we start with a drained battery
+	 * and a charger connected when the backlight is turned on.
+	 * Here we will lower the cut-off voltage threshold before
+	 * power consumption goes up
+	 */
+	ret = ab8500_read(AB8500_SYS_CTRL2_BLOCK, AB8500_BATT_OK_REG);
+	if (ret < 0)
+		return -EINVAL;
+
+	battok_regval = ret;
+
+	/* Mask and set BattOkSel1ThF */
+	ret = ab8500_write(AB8500_SYS_CTRL2_BLOCK, AB8500_BATT_OK_REG,
+		(battok_regval & ~BATT_OK_SEL1_TH_F_MASK) |
+		BATT_OK_SEL1_TH_F_2V71);
+	if (ret < 0)
+		return -EINVAL;
 
 	/*
 	 * Don't load itp, modem and splash if restarted (eg crashdump).
