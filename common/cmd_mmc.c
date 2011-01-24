@@ -25,8 +25,6 @@
 #include <command.h>
 #include <mmc.h>
 
-#define READ_WRITE_TEST		"rwr"
-
 #ifndef CONFIG_GENERIC_MMC
 static int curr_device = -1;
 
@@ -372,86 +370,6 @@ int do_mmcops(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			printf("%d blocks written: %s\n",
 				n, (n == cnt) ? "OK" : "ERROR");
 			return (n == cnt) ? 0 : 1;
-		} else if (strcmp(argv[1], READ_WRITE_TEST) == 0) {
-			int dev = simple_strtoul(argv[2], NULL, 10);
-			int blk = simple_strtoul(argv[3], NULL, 10);
-			u32 cnt = simple_strtoul(argv[4], NULL, 10);
-			u32 loops = simple_strtoul(argv[5], NULL, 10);
-			u32 n;
-			struct mmc *mmc = find_mmc_device(dev);
-			char *s = getenv("loadaddr");
-			/* Assume we can use up to 16MB at "loadaddr" */
-			static const u32 max_transfer_size = 8 * 1024 * 1024;
-			u32 transfer_size = cnt * mmc->block_dev.blksz;;
-			u8 *read_buf = (u8 *) simple_strtoul(s, NULL, 16);
-			u8 *ver_buf = (u8 *) read_buf + max_transfer_size;
-
-			if (!mmc)
-				return 1;
-
-			if (!mmc->block_dev.blksz)
-				mmc_init(mmc);
-
-			if (!loops) {
-				printf("mmc " READ_WRITE_TEST " failed! "
-					"loops(%u)\n", loops);
-				return 1;
-			}
-			if (!transfer_size ||
-			    (transfer_size > max_transfer_size)) {
-				printf("mmc " READ_WRITE_TEST " failed! "
-					"(0 < transfer_size(%u) < %u)\n",
-					transfer_size, max_transfer_size);
-				return 1;
-			}
-
-			if (s == NULL)
-				return 1;
-
-			printf("\nMMC " READ_WRITE_TEST ": dev(%u), "
-			       "block(%u), cnt(%u) loops(%u)\n",
-			       dev, blk, cnt, loops);
-
-			while (loops--) {
-				memset(read_buf, 0, transfer_size);
-				memset(ver_buf, 0, transfer_size);
-				n = mmc->block_dev.block_read(dev, blk, cnt,
-							      read_buf);
-				if (n != cnt) {
-					printf("mmc " READ_WRITE_TEST
-						" failed! loops(%u) n(%u)\n",
-						loops, n);
-					return 1;
-				}
-				/* Flush cache after read */
-				flush_cache((ulong)read_buf, transfer_size);
-				n = mmc->block_dev.block_write(dev, blk, cnt,
-							       read_buf);
-				if (n != cnt) {
-					printf("mmc " READ_WRITE_TEST
-						" failed! loops(%u) n(%u)\n",
-						loops, n);
-					return 1;
-				}
-				n = mmc->block_dev.block_read(dev, blk, cnt,
-							      ver_buf);
-				if (n != cnt) {
-					printf("mmc " READ_WRITE_TEST
-						" failed! loops(%u) n(%u)\n",
-						loops, n);
-					return 1;
-				}
-				/* Flush cache after read */
-				flush_cache((ulong)read_buf, transfer_size);
-				if (memcmp(read_buf, ver_buf, transfer_size)) {
-					printf("mmc " READ_WRITE_TEST
-						" failed! loops(%u)\n",
-						loops);
-					return 1;
-				}
-			}
-			printf("mmc " READ_WRITE_TEST " ok!\n");
-			return 0;
 		} else {
 			printf("Usage:\n%s\n", cmdtp->usage);
 			rc = 1;
@@ -466,8 +384,6 @@ U_BOOT_CMD(
 	"MMC sub system",
 	"read <device num> addr blk# cnt\n"
 	"mmc write <device num> addr blk# cnt\n"
-	"mmc " READ_WRITE_TEST " <device num> blk# cnt loops - reads, "
-	"writes,reads and verifies a chunk of data\n"
 	"mmc rescan <device num>\n"
 	"mmc list - lists available devices");
 #endif
