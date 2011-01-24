@@ -491,14 +491,12 @@ static int mmc_change_freq(struct mmc *mmc)
 	if (err)
 		return err;
 
-	/*
-	 * TODO:
-	 * If high capacity card is found (same as access mode is set to sector
-	 * adress mode), SEC_COUNT in the ext register is where to find out the
-	 * density. SEC_COUNT x 512 bytes = density. This might be a good spot
-	 * where to find out the densisty, since the ext register is already
-	 * read.
-	 */
+	if (mmc->high_capacity)
+		mmc->capacity = (u64)(ext_csd[EXT_CSD_SEC_CNT + 0] << 0 |
+				ext_csd[EXT_CSD_SEC_CNT + 1] << 8 |
+				ext_csd[EXT_CSD_SEC_CNT + 2] << 16 |
+				ext_csd[EXT_CSD_SEC_CNT + 3] << 24) *
+				mmc->read_bl_len;
 
 	mmc->wr_rel_param = ext_csd[EXT_CSD_WR_REL_PARAM];
 	mmc->rel_wr_sec_c = ext_csd[EXT_CSD_REL_WR_SEC_C];
