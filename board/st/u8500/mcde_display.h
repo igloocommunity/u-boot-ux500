@@ -13,6 +13,8 @@
 #include "mcde.h"
 
 extern int cpu_is_u8500v11(void);
+/* Board dependent code. Implemented in <board>.c */
+extern int board_mcde_display_reset(void);
 
 struct mcde_display_generic_platform_data {
 	/* Platform info */

@@ -13,42 +13,11 @@
 #include <asm/arch/common.h>
 #include "mcde_display.h"
 #include "dsilink_regs.h"
-#include <tc35892.h>
 #include "mcde_regs.h"
 #include <malloc.h>
 #include "mcde.h"
 #include <linux/err.h>
 #include <asm/arch/ab8500.h>
-
-static int mcde_enable_gpio(void)
-{
-	int ret;
-
-	debug("%s: enter\n", __func__);
-
-	/* Only main display should be initialized */
-	ret = tc35892_gpio_dir(CONFIG_SYS_I2C_GPIOE_ADDR,
-				main_display_data.reset_gpio, 1);
-	if (ret) {
-		printf("%s:Could not set direction for gpio\n", __func__);
-		return -EINVAL;
-	}
-	ret = tc35892_gpio_set(CONFIG_SYS_I2C_GPIOE_ADDR,
-				main_display_data.reset_gpio, 0);
-	if (ret) {
-		printf("%s:Could reset gpio\n", __func__);
-		return -EINVAL;
-	}
-	mdelay(main_display_data.reset_delay);
-	ret = tc35892_gpio_set(CONFIG_SYS_I2C_GPIOE_ADDR,
-				main_display_data.reset_gpio, 1);
-	if (ret) {
-		printf("%s:Could set gpio\n", __func__);
-		return -EINVAL;
-	}
-	mdelay(main_display_data.reset_delay);
-	return 0;
-}
 
 #define DCS_CMD_EXIT_SLEEP_MODE       0x11
 #define DCS_CMD_SET_DISPLAY_ON        0x29
@@ -259,9 +228,9 @@ int mcde_startup_dsi(struct mcde_platform_data *pdata)
 		return ret;
 	}
 
-	ret = mcde_enable_gpio();
+	ret = board_mcde_display_reset();
 	if (ret) {
-		printf("%s: mcde_enable_gpio() -> %d\n", __func__, ret);
+		printf("%s: board_mcde_display_reset() -> %d\n", __func__, ret);
 		return ret;
 	}
 

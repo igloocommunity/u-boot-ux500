@@ -13,7 +13,6 @@
 #include <asm/arch/common.h>
 #include <asm/arch/ab8500.h>
 #include <linux/err.h>
-#include <tc35892.h>	/* Needed for DSI, to be removed */
 #include "mcde.h"
 #include "mcde_regs.h"
 #include "mcde_display.h"
@@ -38,8 +37,7 @@ static struct mcde_port port0 = {
 };
 
 struct mcde_display_generic_platform_data main_display_data = {
-	.reset_gpio = TC35892_PIN_KPY7,
-	.reset_delay = 10,
+	.reset_delay = CONFIG_SYS_DISPLAY_RST_DELAY,
 };
 
 struct mcde_platform_data platform_data = {

@@ -136,7 +136,11 @@ pin_cfg_t gpio_cfg_hrefv60[] = {
 	GPIO66_GPIO	| PIN_OUTPUT_LOW,	/* DISP2 RST */
 };
 
-int board_id;	/* set in board_late_init() */
+#define BOARD_ID_MOP500		0
+#define BOARD_ID_HREF		1
+#define BOARD_ID_HREFV60	2
+int board_id;	/* set in probe_href() */
+
 int errno;
 
 #ifdef CONFIG_VIDEO_LOGO
@@ -235,6 +239,56 @@ int dram_init(void)
 }
 
 #ifdef CONFIG_VIDEO_LOGO
+
+#if CONFIG_SYS_DISPLAY_DSI
+static int mcde_display_reset_gpioe(void)
+{
+	int ret;
+
+	/* Only main display should be initialized */
+	ret = tc35892_gpio_dir(CONFIG_SYS_I2C_GPIOE_ADDR,
+				TC35892_PIN_KPY7, 1);
+	if (ret) {
+		printf("%s:Could not set direction for gpio\n", __func__);
+		return -EINVAL;
+	}
+	ret = tc35892_gpio_set(CONFIG_SYS_I2C_GPIOE_ADDR,
+				TC35892_PIN_KPY7, 0);
+	if (ret) {
+		printf("%s:Could reset gpio\n", __func__);
+		return -EINVAL;
+	}
+	mdelay(main_display_data.reset_delay);
+	ret = tc35892_gpio_set(CONFIG_SYS_I2C_GPIOE_ADDR,
+				TC35892_PIN_KPY7, 1);
+	if (ret) {
+		printf("%s:Could set gpio\n", __func__);
+		return -EINVAL;
+	}
+	mdelay(main_display_data.reset_delay);
+
+	return ret;
+}
+
+/*
+ * Reset the primary display - called from mcde driver.
+ */
+int board_mcde_display_reset(void)
+{
+	int ret = 0;
+
+	if (board_id >= BOARD_ID_HREFV60) {
+		db8500_gpio_set_output(GPIO65_GPIO, 0); /* DISP1 reset */
+		mdelay(main_display_data.reset_delay);
+		db8500_gpio_set_output(GPIO65_GPIO, 1);
+		mdelay(main_display_data.reset_delay);
+	} else
+		ret = mcde_display_reset_gpioe();
+
+	return ret;
+}
+#endif /* CONFIG_SYS_DISPLAY_DSI */
+
 static int dss_init(void)
 {
 	puts("\nMCDE:  ");
@@ -281,9 +335,9 @@ static void probe_href(void)
 		(void) i2c_set_bus_num(0);
 		if (!i2c_read(CONFIG_SYS_I2C_GPIOE_ADDR, 0x80, 1, &byte, 1)) {
 			if (byte == 0x01)
-				board_id = 0;
+				board_id = BOARD_ID_MOP500;
 			else
-				board_id = 1;
+				board_id = BOARD_ID_HREF;
 		} else
 			/* No GPIOE => HREF+ 2.0 V60 or later */
 			gd->bd->bi_arch_number = MACH_TYPE_HREFV60;
@@ -292,7 +346,7 @@ static void probe_href(void)
 	if (gd->bd->bi_arch_number == MACH_TYPE_HREFV60) {
 		db8500_gpio_config_pins(gpio_cfg_hrefv60,
 					ARRAY_SIZE(gpio_cfg_hrefv60));
-		board_id = 2;
+		board_id = BOARD_ID_HREFV60;
 	}
 
 }
