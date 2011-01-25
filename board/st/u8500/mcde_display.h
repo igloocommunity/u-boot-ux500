@@ -41,6 +41,7 @@ int mcde_splash_image(void);
 int mcde_startup_dpi(struct mcde_platform_data *pdata);
 int mcde_startup_dsi(struct mcde_platform_data *pdata);
 int mcde_display_image(struct mcde_chnl_state *chnl);
+int mcde_turn_on_display(void);
 
 #endif /* !defined(__MCDE_UTILS_H) */
 

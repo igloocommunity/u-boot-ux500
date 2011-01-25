@@ -864,64 +864,6 @@ static void update_overlay_address_registers(u8 idx, struct ovly_regs *regs)
 		regs->baseaddress1);
 }
 
-#define MCDE_FLOWEN_MAX_TRIAL	6
-
-static void disable_channel(struct mcde_chnl_state *chnl)
-{
-	int i;
-	const struct mcde_port *port = &chnl->port;
-
-	dev_vdbg(&mcde_dev->dev, "%s\n", __func__);
-
-	if (port->type == MCDE_PORTTYPE_DSI)
-		dsi_wfld(port->link, DSI_MCTL_MAIN_PHY_CTL, CLK_CONTINUOUS,
-			false);
-
-	switch (chnl->id) {
-	case MCDE_CHNL_A:
-		mcde_wfld(MCDE_CRA0, FLOEN, false);
-		wait_for_channel(chnl);
-		for (i = 0; i < MCDE_FLOWEN_MAX_TRIAL; i++) {
-			msleep(1);
-			if (!mcde_rfld(MCDE_CRA0, FLOEN)) {
-				dev_vdbg(&mcde_dev->dev,
-					"Flow (A) disable after >= %d ms\n", i);
-				goto break_switch;
-			}
-		}
-		dev_warn(&mcde_dev->dev, "%s: channel A timeout\n", __func__);
-		break;
-	case MCDE_CHNL_B:
-		mcde_wfld(MCDE_CRB0, FLOEN, false);
-		wait_for_channel(chnl);
-		for (i = 0; i < MCDE_FLOWEN_MAX_TRIAL; i++) {
-			msleep(1);
-			if (!mcde_rfld(MCDE_CRB0, FLOEN)) {
-				dev_vdbg(&mcde_dev->dev,
-					"Flow (B) disable after >= %d ms\n", i);
-				goto break_switch;
-			}
-		}
-		dev_warn(&mcde_dev->dev, "%s: channel B timeout\n", __func__);
-		break;
-	case MCDE_CHNL_C0:
-		mcde_wfld(MCDE_CRC, C1EN, false);
-		if (!mcde_rfld(MCDE_CRC, C2EN))
-			mcde_wfld(MCDE_CRC, FLOEN, false);
-		wait_for_channel(chnl);
-		break;
-	case MCDE_CHNL_C1:
-		mcde_wfld(MCDE_CRC, C2EN, false);
-		if (!mcde_rfld(MCDE_CRC, C1EN))
-			mcde_wfld(MCDE_CRC, FLOEN, false);
-		wait_for_channel(chnl);
-		break;
-	}
-break_switch:
-	chnl->continous_running = false;
-#undef MCDE_FLOWEN_MAX_TRIAL
-}
-
 static void enable_channel(struct mcde_chnl_state *chnl)
 {
 	const struct mcde_port *port = &chnl->port;
@@ -1580,12 +1522,13 @@ void mcde_ovly_apply(struct mcde_ovly_state *ovly)
  * Used by MCDE to setup all necessary PRCMU registers
  */
 
-#define PRCMU_CLAMP_DSS_DSIPLL		0x00600C00
+#define PRCMU_CLAMP_DSS			0x00400400
+#define PRCMU_CLAMP_DSIPLL		0x00800800
 #define PRCMU_RESET_DSS			0x0000000C
+#define PRCMU_RESET_DSIPLL		0x00004000
 #define PRCMU_ENABLE_DSS_MEM		0x00200000
 #define PRCMU_ENABLE_DSS_LOGIC		0x00100000
 #define PRCMU_DSS_SLEEP_OUTPUT_MASK	0x400
-#define PRCMU_UNCLAMP_DSS_DSIPLL	0x00600C00
 #define PRCMU_POWER_ON_DSI		0x00008000
 
 /* PRCMU clock/PLL/reset registers */
@@ -1594,7 +1537,7 @@ void mcde_ovly_apply(struct mcde_ovly_state *ovly)
 #define PRCMU_CLK_EN			(1 << 8)
 
 #define PRCMU_DSI_CLOCK_SETTING		0x00000148
-#define PRCMU_LCDCLKEN			0x20000		/* bit 17 */
+#define PRCMU_LCDCLKEN			(1 << 17)
 
 #define PRCMU_MCDE_CLOCK_SETTING	0x00000125
 /*
@@ -1608,7 +1551,6 @@ void mcde_ovly_apply(struct mcde_ovly_state *ovly)
 #define PRCMU_DSI_LP_CLOCK_SETTING	0x00000F00
 #define PRCMU_PLLDSI_FREQ_SETTING	0x00020123
 #define PRCMU_ENABLE_PLLDSI		0x00000001
-#define PRCMU_RELEASE_RESET_DSS		0x0000400C
 #define PRCMU_DSI_PLLOUT_SEL_SETTING	0x00000202
 #define PRCMU_ENABLE_ESCAPE_CLOCK	0x07030101
 #define PRCMU_DSI_RESET_SW		0x00000007
@@ -1620,8 +1562,9 @@ void mcde_enable_dss(void)
 {
 	u32 temp;
 	debug("Entering %s\n", __func__);
-	/* Clamp DSS out, DSIPLL in/out, (why not DSS input?) */
-	writel(PRCMU_CLAMP_DSS_DSIPLL, PRCM_MMIP_LS_CLAMP_SET);
+#if CONFIG_SYS_DISPLAY_DSI
+	/* Clamp DSS out, DSIPLL in/out */
+	writel(PRCMU_CLAMP_DSS | PRCMU_CLAMP_DSIPLL, PRCM_MMIP_LS_CLAMP_SET);
 	mdelay(PRCMU_MCDE_DELAY);
 	/* Enable DSS_M_INITN, DSS_L_RESETN, DSIPLL_RESETN resets */
 	writel(PRCMU_RESET_DSS, PRCM_APE_RESETN_CLR);
@@ -1636,24 +1579,21 @@ void mcde_enable_dss(void)
 	temp = readl(PRCM_SRAM_LS_SLEEP);
 	writel(temp & ~PRCMU_DSS_SLEEP_OUTPUT_MASK, PRCM_SRAM_LS_SLEEP);
 	mdelay(PRCMU_MCDE_DELAY);
-	/* Unclamp DSS out, DSIPLL in/out, (why not DSS input?) */
-	writel(PRCMU_UNCLAMP_DSS_DSIPLL, PRCM_MMIP_LS_CLAMP_CLR);
+	/* Unclamp DSS out, DSIPLL in/out */
+	writel(PRCMU_CLAMP_DSS | PRCMU_CLAMP_DSIPLL, PRCM_MMIP_LS_CLAMP_CLR);
 	mdelay(PRCMU_MCDE_DELAY);
 	/* Power on CSI_DSI */
 	writel(PRCMU_POWER_ON_DSI, PRCM_POWER_STATE_SET);
 	mdelay(PRCMU_MCDE_DELAY);
+	/* Set up MCDE Clock */
 	writel(PRCMU_MCDE_CLOCK_SETTING, PRCM_MCDECLK_MGT);
 	mdelay(PRCMU_MCDE_DELAY);
-	/* HDMI and TVCLK Should be handled somewhere else */
 	/* PLLDIV=5, PLLSW=2, CLKEN=1 */
 	writel(PRCMU_DSI_CLOCK_SETTING, PRCM_HDMICLK_MGT);
 	mdelay(PRCMU_MCDE_DELAY);
 	/* PLLDIV=14, PLLSW=2, CLKEN=1 */
 	writel(PRCMU_DSI_LP_CLOCK_SETTING, PRCM_TVCLK_MGT);
 	mdelay(PRCMU_MCDE_DELAY);
-	writel(PRCMU_DPI_CLOCK_SETTING, PRCM_LCDCLK_MGT);
-	mdelay(PRCMU_MCDE_DELAY);
-
 	/* D=43, N=1, R=4, SELDIV2=0 */
 	writel(PRCMU_PLLDSI_FREQ_SETTING, PRCM_PLLDSI_FREQ);
 	mdelay(PRCMU_MCDE_DELAY);
@@ -1661,7 +1601,7 @@ void mcde_enable_dss(void)
 	writel(PRCMU_ENABLE_PLLDSI, PRCM_PLLDSI_ENABLE);
 	mdelay(PRCMU_MCDE_DELAY);
 	/* Release DSS_M_INITN, DSS_L_RESETN, DSIPLL_RESETN */
-	writel(PRCMU_RELEASE_RESET_DSS, PRCM_APE_RESETN_SET);
+	writel(PRCMU_RESET_DSS | PRCMU_RESET_DSIPLL, PRCM_APE_RESETN_SET);
 	mdelay(PRCMU_MCDE_DELAY);
 	/* DSI0=phi/2, DSI1=phi/2 */
 	writel(PRCMU_DSI_PLLOUT_SEL_SETTING, PRCM_DSI_PLLOUT_SEL);
@@ -1672,6 +1612,37 @@ void mcde_enable_dss(void)
 	/* Release DSI reset 0/1/2 */
 	writel(PRCMU_DSI_RESET_SW, PRCM_DSI_SW_RESET);
 	mdelay(PRCMU_MCDE_DELAY);
+#endif
+#if CONFIG_SYS_DISPLAY_DPI
+	/* Clamp DSS out, DSIPLL in/out */
+	writel(PRCMU_CLAMP_DSS, PRCM_MMIP_LS_CLAMP_SET);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Enable DSS_M_INITN, DSS_L_RESETN resets */
+	writel(PRCMU_RESET_DSS, PRCM_APE_RESETN_CLR);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Power on DSS mem */
+	writel(PRCMU_ENABLE_DSS_MEM, PRCM_EPOD_C_SET);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Power on DSS logic */
+	writel(PRCMU_ENABLE_DSS_LOGIC, PRCM_EPOD_C_SET);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Release DSS_SLEEP */
+	temp = readl(PRCM_SRAM_LS_SLEEP);
+	writel(temp & ~PRCMU_DSS_SLEEP_OUTPUT_MASK, PRCM_SRAM_LS_SLEEP);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Unclamp DSS out, DSIPLL in/out */
+	writel(PRCMU_CLAMP_DSS, PRCM_MMIP_LS_CLAMP_CLR);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Set up MCDE Clock */
+	writel(PRCMU_MCDE_CLOCK_SETTING, PRCM_MCDECLK_MGT);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Set up DPI Clock */
+	writel(PRCMU_DPI_CLOCK_SETTING, PRCM_LCDCLK_MGT);
+	mdelay(PRCMU_MCDE_DELAY);
+	/* Release DSS_M_INITN, DSS_L_RESETN */
+	writel(PRCMU_RESET_DSS, PRCM_APE_RESETN_SET);
+	mdelay(PRCMU_MCDE_DELAY);
+#endif
 }
 
 void update_mcde_registers(struct mcde_platform_data *pdata)

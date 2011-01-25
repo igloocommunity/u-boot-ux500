@@ -286,6 +286,6 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 	mcde_ovly_set_dest_pos(ovly, xpos, ypos, 0);
 	mcde_ovly_apply(ovly);
 
-	return mcde_turn_on_display();
+	return 0;
 }
 

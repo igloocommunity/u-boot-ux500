@@ -191,6 +191,7 @@ int mcde_splash_image(void)
 	if (ret != 0) {
 		debug("%s: mcde_display_image() -> %d\n",
 			__func__, ret);
+		goto display_image_failed;
 	}
 
 	mcde_chnl_apply(chnl);
@@ -215,6 +216,7 @@ int mcde_splash_image(void)
 	return ret;
 
 get_chnl_failed:
+display_image_failed:
 set_video_mode_failed:
 	mcde_exit();
 	return ret;
