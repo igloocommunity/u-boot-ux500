@@ -149,7 +149,6 @@ struct stm_spi_slave {
 	u8			*base_addr;
 	u8			n_bytes;
 	struct spi_regs		regs;
-	char			dev_name[4];
 };
 
 /* Clock parameters, to set SPI clock at a desired freq */
@@ -355,7 +354,6 @@ void spi_free_slave(struct spi_slave *slave)
 int spi_claim_bus(struct spi_slave *slave)
 {
 	struct stm_spi_slave *sss = to_stm_spi_slave(slave);
-	int ret = 0;
 
 	pr_dbg("slave 0x%p", slave);
 
@@ -400,11 +398,6 @@ int spi_claim_bus(struct spi_slave *slave)
 		pr_err("Unknown SPI controller for bus %u.", sss->slave.bus);
 		return -1;
 	}
-
-	/* Sets the device name, for instance "SPI2" */
-	strcpy(sss->dev_name, "SPIx");
-	sss->dev_name[3] = ('0' + sss->slave.bus);
-
 
 	/*
 	 * 1. Clear SSE bit in SPI_CR1 register. This step is not required
@@ -542,7 +535,7 @@ int spi_cs_is_valid(u32 bus, u32 cs)
 {
 	pr_dbg("bus %u, cs %u", bus, cs);
 
-	if (((bus >= 0) && (bus < 4)) && (cs == 0))
+	if ((bus < 4) && (cs == 0))
 		return 1;
 	else
 		return 0;
