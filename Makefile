@@ -413,7 +413,7 @@ etags:
 		etags -a -o $(obj)etags `find $(TAG_SUBDIRS) \
 						-name '*.[chS]' -print`
 cscope:
-		find $(TAG_SUBDIRS) -name '*.[chS]' -print > cscope.files
+		find $(TAG_SUBDIRS) -name '*.[chS]' -not -type l -print > cscope.files
 		cscope -b -q -k
 
 SYSTEM_MAP = \
