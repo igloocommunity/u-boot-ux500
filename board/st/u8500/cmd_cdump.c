@@ -13,16 +13,33 @@
 #include <command.h>
 #include "malloc.h"
 #include <mmc.h>
+#include <asm/io.h>
 
 #include <asm/setup.h>
 #include <elf.h>
 #include <fat.h>
+#include <asm/arch/hardware.h>
+
+#define TWD_WDOG_LOAD			0x20
 
 /*
  * Note: with the Rockbox FAT support, the file path must be an absolute path,
  * i.e. with leading /.
  */
 static char *crash_filename = "/cdump.elf";
+
+static void kick_mpcore_wdt(void)
+{
+	unsigned long mpcore_wdt_loadreg;
+
+	mpcore_wdt_loadreg = readl(U8500_TWD_BASE + TWD_WDOG_LOAD);
+	/*
+	 * According to the linux mpcore_wdt driver a different value needs to
+	 * be written to the load register every time
+	 */
+	mpcore_wdt_loadreg = mpcore_wdt_loadreg ^ 0x1;
+	writel(mpcore_wdt_loadreg, U8500_TWD_BASE + TWD_WDOG_LOAD);
+}
 
 /*
  * Check ELF header
@@ -71,6 +88,8 @@ static int write_big_chunk(int fd, void *addr, size_t count)
 	/* if large chunk then print dot to show progress */
 	while (total < count) {
 		size_t bytes = count - total;
+
+		kick_mpcore_wdt();
 
 		if (bytes > 0x100000)
 			bytes = 0x100000;
@@ -256,6 +275,7 @@ static int wait_for_mmc(void)
 		return 1;
 	}
 	while (mmc_init(mmc) != 0) {
+		kick_mpcore_wdt();
 		printf("Insert MMC/SD card or press ctrl-c to abort\n");
 		putc('.');
 		udelay(500000);
