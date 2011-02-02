@@ -656,3 +656,10 @@ out:
 	return (0);
 }
 #endif /* BOARD_LATE_INIT */
+
+#ifdef CONFIG_SNOWBALL
+int board_eth_init(bd_t *bis)
+{
+       return smc911x_initialize(0, CONFIG_SMC911X_BASE);
+}
+#endif
