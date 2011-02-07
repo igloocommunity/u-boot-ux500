@@ -12,6 +12,8 @@ fi
 
 
 # Grab archive name
+MODULE_NAME=$(rpm --eval "$(head -n 200 $SPEC)" | grep -r "^Name:" | sed -re 's/.*?:[\t ]+(.*?)[\t ]*/\1/g')
+MODULE_VERSION=$(rpm --eval "$(head -n 200 $SPEC)" | grep -r "^Version:" | sed -re 's/.*?:[\t ]+(.*?)[\t ]*/\1/g')
 MODULE_ARCHIVE_NAME=$(basename "$(rpm --eval "$(head -n 200 $SPEC)" | grep -r "^Source0:" | sed -re 's/.*?:[\t ]+(.*?)[\t ]*/\1/g')")
 [ -z $MODULE_ARCHIVE_NAME ] && MODULE_ARCHIVE_NAME=$(basename "$(rpm --eval "$(head -n 200 $SPEC)" | grep -r "^Source:" | sed -re 's/.*?:[\t ]+(.*?)[\t ]*/\1/g')")
 MODULE_ARCHIVE_NAME="$(echo "$MODULE_ARCHIVE_NAME" | sed -e "s|%{name}|$MODULE_NAME|" -e "s|%{version}|$MODULE_VERSION|")"
@@ -32,4 +34,4 @@ fi
 
 #Generate git version file
 TOPDIR="`pwd`"
-$TOPDIR/tools/setlocalversion $TOPDIR > $TEMP_DIR/localversion-meegobuild
+$TOPDIR/tools/setlocalversion $TOPDIR v$MODULE_VERSION> $TEMP_DIR/localversion-meegobuild
