@@ -2,7 +2,7 @@
 # Print additional version information for non-release trees.
 
 usage() {
-	echo "Usage: $0 [srctree]" >&2
+	echo "Usage: $0 [srctree] [git tag (optional)]" >&2
 	exit 1
 }
 
@@ -10,10 +10,16 @@ cd "${1:-.}" || usage
 
 # Check for git and a git repo.
 if head=`git rev-parse --verify HEAD 2>/dev/null`; then
+	# Check if we shall search for specific tag, if not latest will be used
+	if [ -n "$2" ]; then
+		REV_REFS_OPTION="--refs refs/tags/"$2
+		MATCH_OPTION="--match "$2
+	fi
+
 	# Do we have an untagged version?
-	if git name-rev --tags HEAD | \
+	if git name-rev --tags $REV_REFS_OPTION HEAD | \
 	   grep -E '^HEAD[[:space:]]+(.*~[0-9]*|undefined)$' > /dev/null; then
-	        git describe | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
+	        git describe $MATCH_OPTION | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
 	fi
 
 	# Are there uncommitted changes?

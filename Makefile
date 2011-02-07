@@ -382,7 +382,7 @@ $(U_BOOT_ONENAND):	$(ONENAND_IPL) $(obj)u-boot.bin
 
 $(VERSION_FILE):
 		@( printf '#define U_BOOT_VERSION "U-Boot %s%s"\n' "$(U_BOOT_VERSION)" \
-		 '$(shell $(TOPDIR)/tools/setlocalversion $(TOPDIR))' ) > $@.tmp
+		 '$(shell $(TOPDIR)/tools/setlocalversion $(TOPDIR) v$(U_BOOT_VERSION))' ) > $@.tmp
 		@cmp -s $@ $@.tmp && rm -f $@.tmp || mv -f $@.tmp $@
 
 $(TIMESTAMP_FILE):
