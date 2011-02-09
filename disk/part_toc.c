@@ -98,7 +98,7 @@ static toc_entry_t *toc_get_subtoc_entry_num(block_dev_desc_t *dev_desc,
 		 */
 		return &subtoc->cache[num % TOC_MAX_ENTRIES];
 
-	printf("Sub TOC entry not found\n");
+	debug("toc_get_subtoc_entry_num: Sub TOC entry not found\n");
 	return NULL;
 }
 
@@ -138,7 +138,7 @@ static toc_entry_t *toc_get_subtoc_entry_id(block_dev_desc_t *dev_desc,
 		}
 	}
 
-	printf("Sub TOC entry not found\n");
+	debug("toc_get_subtoc_entry_id: Sub TOC entry not found\n");
 	return NULL;
 }
 
