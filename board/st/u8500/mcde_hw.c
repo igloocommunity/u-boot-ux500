@@ -1539,7 +1539,7 @@ void mcde_ovly_apply(struct mcde_ovly_state *ovly)
 #define PRCMU_DSI_CLOCK_SETTING		0x00000148
 #define PRCMU_LCDCLKEN			(1 << 17)
 
-#define PRCMU_MCDE_CLOCK_SETTING	0x00000125
+#define PRCMU_MCDE_CLOCK_ENABLE		0x01000000
 /*
  * from linux prcmu-db8500.c:
  * Set DPI clock to 50000000 Hz
@@ -1585,8 +1585,8 @@ void mcde_enable_dss(void)
 	/* Power on CSI_DSI */
 	writel(PRCMU_POWER_ON_DSI, PRCM_POWER_STATE_SET);
 	mdelay(PRCMU_MCDE_DELAY);
-	/* Set up MCDE Clock */
-	writel(PRCMU_MCDE_CLOCK_SETTING, PRCM_MCDECLK_MGT);
+	/* Enable MCDE Clock */
+	writel(PRCMU_MCDE_CLOCK_ENABLE, PRCM_YYCLKEN0_MGT_SET);
 	mdelay(PRCMU_MCDE_DELAY);
 	/* PLLDIV=5, PLLSW=2, CLKEN=1 */
 	writel(PRCMU_DSI_CLOCK_SETTING, PRCM_HDMICLK_MGT);
@@ -1633,8 +1633,8 @@ void mcde_enable_dss(void)
 	/* Unclamp DSS out, DSIPLL in/out */
 	writel(PRCMU_CLAMP_DSS, PRCM_MMIP_LS_CLAMP_CLR);
 	mdelay(PRCMU_MCDE_DELAY);
-	/* Set up MCDE Clock */
-	writel(PRCMU_MCDE_CLOCK_SETTING, PRCM_MCDECLK_MGT);
+	/* Enable MCDE Clock */
+	writel(PRCMU_MCDE_CLOCK_ENABLE, PRCM_YYCLKEN0_MGT_SET);
 	mdelay(PRCMU_MCDE_DELAY);
 	/* Set up DPI Clock */
 	writel(PRCMU_DPI_CLOCK_SETTING, PRCM_LCDCLK_MGT);
