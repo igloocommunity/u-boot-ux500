@@ -519,6 +519,7 @@ out:
 int board_late_init(void)
 {
 	uchar byte;
+	int ret;
 #ifdef CONFIG_MMC
 	uchar byte_array[] = {0x06, 0x06};
 #endif
@@ -532,32 +533,35 @@ int board_late_init(void)
 	else
 		setenv("board_id", "1");
 
-	/* For snowball (aka "minikit") we need to raise AB8500's GPIO26 */
-	ret = ab8500_read(AB8500_MISC, AB8500_GPIO_DIR4_REG);
-	if (ret < 0) {
-		printf("error at %s:%i\n", __func__, __LINE__);
-		goto out;
-	}
-	printf("dir4 = %02x\n", ret);
-	ret |= 0x2;
-	ret = ab8500_write(AB8500_MISC, AB8500_GPIO_DIR4_REG, ret);
-	if (ret < 0) {
-		printf("error at %s:%i\n", __func__, __LINE__);
-		goto out;
+	if (u8500_is_snowball()) {
+		/* For snowball (aka "minikit") we need to raise AB8500's GPIO26 */
+		ret = ab8500_read(AB8500_MISC, AB8500_GPIO_DIR4_REG);
+		if (ret < 0) {
+			printf("error at %s:%i\n", __func__, __LINE__);
+			goto out;
+		}
+
+		ret |= 0x2;
+		ret = ab8500_write(AB8500_MISC, AB8500_GPIO_DIR4_REG, ret);
+		if (ret < 0) {
+			printf("error at %s:%i\n", __func__, __LINE__);
+			goto out;
+		}
+
+		ret = ab8500_read(AB8500_MISC, AB8500_GPIO_OUT4_REG);
+		if (ret < 0) {
+			printf("error at %s:%i\n", __func__, __LINE__);
+			goto out;
+		}
+
+		ret |= 0x2;
+		ret = ab8500_write(AB8500_MISC, AB8500_GPIO_OUT4_REG, ret);
+		if (ret < 0) {
+			printf("error at %s:%i\n", __func__, __LINE__);
+			goto out;
+		}
 	}
 
-	ret = ab8500_read(AB8500_MISC, AB8500_GPIO_OUT4_REG);
-	if (ret < 0) {
-		printf("error at %s:%i\n", __func__, __LINE__);
-		goto out;
-	}
-	printf("out4 = %02x\n", ret);
-	ret |= 0x2;
-	ret = ab8500_write(AB8500_MISC, AB8500_GPIO_OUT4_REG, ret);
-	if (ret < 0) {
-		printf("error at %s:%i\n", __func__, __LINE__);
-		goto out;
-	}
 out:
 #ifdef CONFIG_MMC
 	hrefplus_mmc_power_init();
