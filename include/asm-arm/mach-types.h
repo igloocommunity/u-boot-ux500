@@ -3170,6 +3170,11 @@ extern unsigned int __machine_arch_type;
 /* manually added, but official value */
 #define MACH_TYPE_HREFV60              3293	/* 0x0cdd */
 
+/* Manually added, unofficial value.
+ * Needs to be kept in sync with kernel machine_id.
+ */
+#define MACH_TYPE_SNOWBALL		2368
+
 #ifdef CONFIG_ARCH_EBSA110
 # ifdef machine_arch_type
 #  undef machine_arch_type

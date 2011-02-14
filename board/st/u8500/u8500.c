@@ -136,9 +136,20 @@ pin_cfg_t gpio_cfg_hrefv60[] = {
 	GPIO66_GPIO	| PIN_OUTPUT_LOW,	/* DISP2 RST */
 };
 
+pin_cfg_t gpio_cfg_snowball[] = {
+	/* MMC0 (MicroSD card) */
+	GPIO217_GPIO    | PIN_OUTPUT_HIGH,      /* MMC_EN */
+	GPIO218_GPIO    | PIN_INPUT_NOPULL,     /* MMC_CD */
+	GPIO228_GPIO    | PIN_OUTPUT_HIGH,      /* SD_SEL */
+
+	/* eMMC */
+	GPIO167_GPIO    | PIN_OUTPUT_HIGH,      /* RSTn_MLC */
+};
+
 #define BOARD_ID_MOP500		0
 #define BOARD_ID_HREF		1
 #define BOARD_ID_HREFV60	2
+#define BOARD_ID_SNOWBALL      3
 int board_id;	/* set in probe_href() */
 
 int errno;
@@ -338,17 +349,23 @@ static void probe_href(void)
 				board_id = BOARD_ID_MOP500;
 			else
 				board_id = BOARD_ID_HREF;
-		} else
+		} else if(u8500_is_snowball()) {
+			gd->bd->bi_arch_number = MACH_TYPE_SNOWBALL;
+
+			db8500_gpio_config_pins(gpio_cfg_snowball,
+					ARRAY_SIZE(gpio_cfg_snowball));
+
+			board_id = BOARD_ID_SNOWBALL;
+		} else{
 			/* No GPIOE => HREF+ 2.0 V60 or later */
 			gd->bd->bi_arch_number = MACH_TYPE_HREFV60;
-	}
 
-	if (gd->bd->bi_arch_number == MACH_TYPE_HREFV60) {
-		db8500_gpio_config_pins(gpio_cfg_hrefv60,
+			db8500_gpio_config_pins(gpio_cfg_hrefv60,
+
 					ARRAY_SIZE(gpio_cfg_hrefv60));
-		board_id = BOARD_ID_HREFV60;
+			board_id = BOARD_ID_HREFV60;
+		}
 	}
-
 }
 
 #define BATT_OK_SEL1_TH_F_MASK		0xF0

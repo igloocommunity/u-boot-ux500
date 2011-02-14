@@ -39,6 +39,15 @@ static inline unsigned int read_cpuid(void)
 	return val;
 }
 
+static inline int u8500_is_snowball(void)
+{
+#ifdef CONFIG_SNOWBALL
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 static inline int u8500_is_earlydrop(void)
 {
 	return read_cpuid() == CPUID_DB8500ED;
