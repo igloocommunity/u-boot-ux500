@@ -328,4 +328,24 @@
 #define CFG_MCDE_BASE 			0xA0350000
 #define CFG_DSI_BASE  			0xA0351000
 
+/*-----------------------------------------------------------------------
+ * Snowball configs, enabled with '#define CONFIG_SNOWBALL' found in
+ * include/config.h
+ */
+#ifdef CONFIG_SNOWBALL
+#define CONFIG_CMD_DHCP
+#define CONFIG_CMD_NET		/* bootp, tftpboot, rarpboot */
+#define CONFIG_CMD_NFS		/* NFS support */ 
+#define CONFIG_CMD_PING		/* ping support */
+
+/*
+ * Network
+ */
+#define CONFIG_NET
+#define CONFIG_NET_MULTI
+#define CONFIG_SMC911X
+#define CONFIG_SMC911X_16_BIT
+#define CONFIG_SMC911X_BASE (0x5000 << 16)
+#endif /* CONFIG_SNOWBALL */
+
 #endif	/* __CONFIG_H */

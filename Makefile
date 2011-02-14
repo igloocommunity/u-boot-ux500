@@ -3157,7 +3157,8 @@ u8500_def_config \
 u8500_SRAM_config \
 u8500_noconsole_config \
 u8500_udc_config \
-u8500_auto_config:
+u8500_auto_config \
+u8500_snowball_config:
 	@if [ -z "$(shell grep "steconfig:$@" $(obj)include/config.h 2>/dev/null)" ]; then \
 		$(MAKE) unconfig ; \
 		mkdir -p $(obj)include ; \
@@ -3179,6 +3180,12 @@ u8500_auto_config:
 		if [ "$(findstring _SRAM, $@)" ] ; then \
 			echo "#define CONFIG_BOOT_SRAM" >>  $(obj)include/config.h ; \
 			echo "TEXT_BASE = 0x40030000" >$(obj)board/st/u8500/config.tmp ; \
+		fi ; \
+		if [ "$(findstring _snowball, $@)" ] ; then \
+			echo "#ifndef  CONFIG_SKIP_LOWLEVEL_INIT " >> $(obj)include/config.h ; \
+			echo "#define  CONFIG_SKIP_LOWLEVEL_INIT 1" >> $(obj)include/config.h ; \
+			echo "#endif"  >> $(obj)include/config.h ; \
+			echo "#define  CONFIG_SNOWBALL 1" >> $(obj)include/config.h ; \
 		fi ; \
 		$(MKCONFIG) -a u8500 arm arm_cortexa9 u8500 st db8500 ; \
 	fi
