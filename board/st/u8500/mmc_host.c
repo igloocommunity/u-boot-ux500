@@ -461,7 +461,7 @@ static int emmc_host_init(struct mmc *dev)
 
 	/* TODO: Investigate what is actually needed of the below. */
 
-	if (u8500_is_earlydrop()) {
+	if (u8500_is_earlydrop() || u8500_is_snowball()) {
 		debugX(DBG_LVL_VERBOSE, "configuring EMMC for ED\n");
 		host->base = (struct sdi_registers *)CFG_EMMC_BASE_ED;
 	} else {
