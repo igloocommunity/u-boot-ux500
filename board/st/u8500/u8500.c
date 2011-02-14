@@ -71,19 +71,6 @@ pin_cfg_t gpio_cfg_common[] = {
 	GPIO27_MC0_DAT2		| PIN_INPUT_PULLUP,
 	GPIO28_MC0_DAT3		| PIN_INPUT_PULLUP,
 
-	/* MMC2 (POP eMMC) */
-	GPIO128_MC2_CLK		| PIN_OUTPUT_LOW,
-	GPIO129_MC2_CMD		| PIN_INPUT_PULLUP,
-	GPIO130_MC2_FBCLK	| PIN_INPUT_NOPULL,
-	GPIO131_MC2_DAT0	| PIN_INPUT_PULLUP,
-	GPIO132_MC2_DAT1	| PIN_INPUT_PULLUP,
-	GPIO133_MC2_DAT2	| PIN_INPUT_PULLUP,
-	GPIO134_MC2_DAT3	| PIN_INPUT_PULLUP,
-	GPIO135_MC2_DAT4	| PIN_INPUT_PULLUP,
-	GPIO136_MC2_DAT5	| PIN_INPUT_PULLUP,
-	GPIO137_MC2_DAT6	| PIN_INPUT_PULLUP,
-	GPIO138_MC2_DAT7	| PIN_INPUT_PULLUP,
-
 	/* MMC4 (On-board eMMC) */
 	GPIO197_MC4_DAT3	| PIN_INPUT_PULLUP,
 	GPIO198_MC4_DAT2	| PIN_INPUT_PULLUP,
@@ -119,6 +106,24 @@ pin_cfg_t gpio_cfg_common[] = {
 	GPIO265_USB_DAT2,
 	GPIO266_USB_DAT1,
 	GPIO267_USB_DAT0,
+};
+
+/*
+ * Default for href boards.
+ */
+pin_cfg_t gpio_cfg_default[] = {
+	/* MMC2 (POP eMMC) */
+	GPIO128_MC2_CLK		| PIN_OUTPUT_LOW,
+	GPIO129_MC2_CMD		| PIN_INPUT_PULLUP,
+	GPIO130_MC2_FBCLK	| PIN_INPUT_NOPULL,
+	GPIO131_MC2_DAT0	| PIN_INPUT_PULLUP,
+	GPIO132_MC2_DAT1	| PIN_INPUT_PULLUP,
+	GPIO133_MC2_DAT2	| PIN_INPUT_PULLUP,
+	GPIO134_MC2_DAT3	| PIN_INPUT_PULLUP,
+	GPIO135_MC2_DAT4	| PIN_INPUT_PULLUP,
+	GPIO136_MC2_DAT5	| PIN_INPUT_PULLUP,
+	GPIO137_MC2_DAT6	| PIN_INPUT_PULLUP,
+	GPIO138_MC2_DAT7	| PIN_INPUT_PULLUP,
 };
 
 /*
@@ -215,6 +220,11 @@ int board_init(void)
 
 	/* Configure GPIO pins needed by U-boot */
 	db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_common));
+	
+	if (u8500_is_snowball()) 
+		db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_snowball));
+	else
+		db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_default));
 
 	return 0;
 }
@@ -351,10 +361,6 @@ static void probe_href(void)
 				board_id = BOARD_ID_HREF;
 		} else if(u8500_is_snowball()) {
 			gd->bd->bi_arch_number = MACH_TYPE_SNOWBALL;
-
-			db8500_gpio_config_pins(gpio_cfg_snowball,
-					ARRAY_SIZE(gpio_cfg_snowball));
-
 			board_id = BOARD_ID_SNOWBALL;
 		} else{
 			/* No GPIOE => HREF+ 2.0 V60 or later */
