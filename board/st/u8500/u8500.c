@@ -149,6 +149,19 @@ pin_cfg_t gpio_cfg_snowball[] = {
 
 	/* eMMC */
 	GPIO167_GPIO    | PIN_OUTPUT_HIGH,      /* RSTn_MLC */
+
+	/* LAN */ 
+	GPIO131_SM_ADQ8, 
+	GPIO132_SM_ADQ9, 
+	GPIO133_SM_ADQ10, 
+	GPIO134_SM_ADQ11, 
+	GPIO135_SM_ADQ12, 
+	GPIO136_SM_ADQ13, 
+	GPIO137_SM_ADQ14, 
+	GPIO138_SM_ADQ15,
+
+	/* RSTn_LAN */
+	GPIO141_GPIO	| PIN_OUTPUT_HIGH,
 };
 
 #define BOARD_ID_MOP500		0
@@ -566,6 +579,9 @@ int board_late_init(void)
 			printf("error at %s:%i\n", __func__, __LINE__);
 			goto out;
 		}
+		
+		/* setup FSMC for LAN controler */
+		writel(0x305b, 0x80000000);
 	}
 
 out:
