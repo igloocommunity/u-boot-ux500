@@ -581,6 +581,8 @@ int board_late_init(void)
 		
 		/* setup FSMC for LAN controler */
 		writel(0x305b, 0x80000000);
+		/* the default is too slow */
+		writel(0x01010110, 0x80000004);
 	}
 
 out:
