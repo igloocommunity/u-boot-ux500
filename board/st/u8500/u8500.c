@@ -237,7 +237,7 @@ int board_init(void)
 	if (u8500_is_snowball()){ 
 		db8500_gpio_config_pins(gpio_cfg_snowball, ARRAY_SIZE(gpio_cfg_snowball));
 	}else{
-		db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_default));
+		db8500_gpio_config_pins(gpio_cfg_default, ARRAY_SIZE(gpio_cfg_default));
 	}
 	return 0;
 }
