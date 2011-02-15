@@ -234,11 +234,11 @@ int board_init(void)
 	/* Configure GPIO pins needed by U-boot */
 	db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_common));
 	
-	if (u8500_is_snowball()) 
-		db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_snowball));
-	else
+	if (u8500_is_snowball()){ 
+		db8500_gpio_config_pins(gpio_cfg_snowball, ARRAY_SIZE(gpio_cfg_snowball));
+	}else{
 		db8500_gpio_config_pins(gpio_cfg_common, ARRAY_SIZE(gpio_cfg_default));
-
+	}
 	return 0;
 }
 
@@ -380,7 +380,6 @@ static void probe_href(void)
 			gd->bd->bi_arch_number = MACH_TYPE_HREFV60;
 
 			db8500_gpio_config_pins(gpio_cfg_hrefv60,
-
 					ARRAY_SIZE(gpio_cfg_hrefv60));
 			board_id = BOARD_ID_HREFV60;
 		}
