@@ -578,7 +578,11 @@ int board_late_init(void)
 			printf("error at %s:%i\n", __func__, __LINE__);
 			goto out;
 		}
-		
+	
+		/* Turn on FSMC device */
+		writel(0x1, 0x8000f000);
+		writel(0x1, 0x8000f008);
+
 		/* setup FSMC for LAN controler */
 		writel(0x305b, 0x80000000);
 		/* the default is too slow */
