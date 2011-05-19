@@ -13,6 +13,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <asm/arch/cpu.h>
 #include "part_toc.h"
 
 static int toc_location = NO_TOC;
@@ -480,8 +481,10 @@ void print_part_toc(block_dev_desc_t *dev_desc)
 int test_part_toc(block_dev_desc_t *dev_desc)
 {
 	debug("test_part_toc\n");
-	if (toc_init(dev_desc, &toc_main_toc[0]) == 0)
-		return 0;
+	if (toc_init(dev_desc, &toc_main_toc[0]) == 0) {
+		/* If Snowball ignore TOC */
+		return u8500_is_snowball();
+	}
 	else
 		return 1;
 }
