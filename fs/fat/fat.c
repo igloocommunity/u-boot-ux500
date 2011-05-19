@@ -170,6 +170,7 @@ fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 #if defined(CONFIG_ROCKBOX_FAT)
 		cur_block_dev.cur_part = part_no;
 		cur_block_dev.part_offset=info.start;
+		printf("Partition info retrieved\n");
 #else
 		part_offset = info.start;
 		cur_part = part_no;
@@ -211,8 +212,10 @@ fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 		 * purpose the libpart must be included.
 		 */
 #if defined(CONFIG_ROCKBOX_FAT)
-		cur_block_dev.cur_part = 1;
+		cur_block_dev.cur_part = 1; 
 		cur_block_dev.part_offset = 32;
+		cur_block_dev.part_offset=info.start;
+		}
 #else
 		part_offset = 32;
 		cur_part = 1;
