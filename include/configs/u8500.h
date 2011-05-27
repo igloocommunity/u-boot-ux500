@@ -127,48 +127,53 @@
 #define CONFIG_PREBOOT
 
 #undef CONFIG_BOOTARGS
-#define CONFIG_BOOTCOMMAND	"run emmcboot"
+#define CONFIG_BOOTCOMMAND \
+	"mmc rescan 0; mmc rescan 1; "					\
+		"if run loadbootscript; "				\
+		    "then run bootscript; "				\
+		"else "							\
+		    "if run emmcload; "					\
+		        "then run emmcboot; "				\
+		    "else "						\
+		        "if run mmcload; "				\
+		            "then run mmcboot; "			\
+			"else "						\
+			    "echo No media to boot from; "		\
+			"fi; "						\
+		    "fi; "						\
+		"fi; "
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"verify=n\0"							\
 	"loadaddr=0x00100000\0"						\
 	"console=ttyAMA2,115200n8\0"					\
+	"loadbootscript=fat load mmc 1:1 ${loadaddr} boot.scr\0"	\
+	"bootscript=echo Running bootscript "				\
+		"from mmc ...; source ${loadaddr}\0"			\
 	"memargs256=mem=96M@0 mem_modem=32M@96M mem=32M@128M "		\
 		"hwmem=22M@160M pmem_hwb=42M@182M mem_mali=32@224M\0"	\
 	"memargs512=mem=96M@0 mem_modem=32M@96M hwmem=32M@128M "	\
 		"mem=64M@160M mem_mali=32M@224M "			\
 		"pmem_hwb=128M@256M mem=128M@384M\0"			\
-	"commonargs=setenv bootargs cachepolicy=writealloc noinitrd "	\
-		"init=init "						\
-		"board_id=${board_id} "					\
-		"crashkernel=${crashkernel} "				\
-		"logo.${logo} "						\
-		"startup_graphics=${startup_graphics}\0"		\
+	"memargs=setenv bootargs ${bootargs} ${memargs512}\0"		\
+	"emmcload=fat load mmc 0:2 ${loadaddr} /uImage\0"		\
+	"mmcload=fat load mmc 1:1 ${loadaddr} /uImage\0"		\
+	"commonargs=setenv bootargs console=${console} "		\
+		"ip=dhcp\0"						\
 	"emmcargs=setenv bootargs ${bootargs} "				\
-		"root=/dev/mmcblk0p2 "					\
+		"root=/dev/mmcblk0p3 "					\
 		"rootwait\0"						\
 	"addcons=setenv bootargs ${bootargs} "				\
 		"console=${console}\0"					\
 	"emmcboot=echo Booting from eMMC ...; "				\
-		"run commonargs emmcargs addcons memargs;"		\
-		"boottime_tag write_partition;"				\
-		"write_partition_block;"				\
-		"boottime_tag load_kernel;"				\
-		"mmc read 0 ${loadaddr} 0xA0000 0x4000;"		\
-		"boottime_tag boot_kernel;"				\
+		"run commonargs emmcargs; "				\
 		"bootm ${loadaddr}\0"					\
-	"cmdfile=mmc rescan 1;mmc_read_cmd_file;run bootcmd\0"		\
-	"flash=mmc rescan 1;fat load mmc 1 ${loadaddr} /flash.scr;"	\
-		"source ${loadaddr}\0"					\
-	"loaduimage=mmc rescan 1;fat load mmc 1 ${loadaddr} /uImage\0"	\
 	"mmcargs=setenv bootargs ${bootargs} "				\
-		"root=/dev/mmcblk2p2 "					\
+		"root=/dev/mmcblk1p2 "					\
 		"rootwait\0"						\
 	"mmcboot=echo Booting from external MMC ...; "			\
-		"run commonargs mmcargs addcons memargs;"		\
-		"write_partition_block;"				\
-		"run loaduimage; bootm ${loadaddr}\0"			\
-	"usbtty=cdc_acm\0"						\
+		"run commonargs mmcargs; "				\
+		"bootm ${loadaddr}\0"					\
 	"stdout=serial,usbtty\0"					\
 	"stdin=serial,usbtty\0"						\
 	"stderr=serial,usbtty\0"
@@ -263,8 +268,8 @@
 /*-----------------------------------------------------------------------
  * USB related configs
  */
-#define CONFIG_USB_BASE 		0xA03E0000
-#define UDC_BASE	 		0xA03E0000
+#define CONFIG_USB_BASE			0xA03E0000
+#define UDC_BASE			0xA03E0000
 
 #define CONFIG_USB_DEVICE		1
 #define CONFIG_MUSB			1 /* Enable USB driver */
@@ -325,8 +330,8 @@
 /*
  * U8500 Display register base
  */
-#define CFG_MCDE_BASE 			0xA0350000
-#define CFG_DSI_BASE  			0xA0351000
+#define CFG_MCDE_BASE			0xA0350000
+#define CFG_DSI_BASE			0xA0351000
 
 /*-----------------------------------------------------------------------
  * Snowball configs, enabled with '#define CONFIG_SNOWBALL' found in
@@ -335,7 +340,7 @@
 #ifdef CONFIG_SNOWBALL
 #define CONFIG_CMD_DHCP
 #define CONFIG_CMD_NET		/* bootp, tftpboot, rarpboot */
-#define CONFIG_CMD_NFS		/* NFS support */ 
+#define CONFIG_CMD_NFS		/* NFS support */
 #define CONFIG_CMD_PING		/* ping support */
 
 /*
