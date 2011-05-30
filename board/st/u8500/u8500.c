@@ -694,13 +694,20 @@ int board_late_init(void)
 	 * memargs512 environment variable, depending on the memory size.
 	 * memargs is used to build the bootargs, memargs256 and memargs512 are
 	 * stored in the environment.
+	 *
+	 * Don't disturb if snowball.
 	 */
-	if (gd->bd->bi_dram[0].size == 0x10000000) {
-		setenv("memargs", "setenv bootargs ${bootargs} ${memargs256}");
-		setenv("mem", "256M");
-	} else {
-		setenv("memargs", "setenv bootargs ${bootargs} ${memargs512}");
-		setenv("mem", "512M");
+
+	if (!u8500_is_snowball()){
+		if (gd->bd->bi_dram[0].size == 0x10000000) {
+			setenv("memargs", "setenv bootargs ${bootargs} \
+							 ${memargs256}");
+			setenv("mem", "256M");
+		} else {
+			setenv("memargs", "setenv bootargs ${bootargs} \
+							 ${memargs512}");
+			setenv("mem", "512M");
+		}
 	}
 
 	/*
