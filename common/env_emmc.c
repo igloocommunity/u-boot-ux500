@@ -11,6 +11,7 @@
 #include <environment.h>
 #include <part.h>
 #include <mmc.h>
+#include <asm/arch/cpu.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -63,8 +64,12 @@ int saveenv(void)
 	}
 
 	if (size != CONFIG_ENV_SIZE) {
-		printf("env size mismatch, so env not saved!\n");
-		return 1;
+		if (u8500_is_snowball()) {
+			size = CONFIG_ENV_SIZE;
+		} else {
+			printf("env size mismatch, so env not saved!\n");
+			return 1;
+		}
 	}
 
 	env_crc_update();
@@ -111,8 +116,12 @@ void env_relocate_spec (void)
 	}
 
 	if (size != CONFIG_ENV_SIZE) {
-		printf("env size mismatch, so setting default env!\n");
-		goto err;
+		if (u8500_is_snowball()) {
+			size = CONFIG_ENV_SIZE;
+		} else {
+			printf("env size mismatch, so setting default env!\n");
+			goto err;
+		}
 	}
 
 	blkcnt = (size + mmc_dev->read_bl_len - 1) / mmc_dev->read_bl_len;
