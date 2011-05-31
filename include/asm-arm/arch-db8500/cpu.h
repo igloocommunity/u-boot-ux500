@@ -12,6 +12,7 @@
 #ifndef __DB8500_CPU_H__
 #define __DB8500_CPU_H__
 
+#include <config.h>
 #include <asm/io.h>
 #include <asm/arch/hardware.h>
 
@@ -47,6 +48,9 @@ static inline int u8500_is_snowball(void)
 	return 0;
 #endif
 }
+
+#define HREF_PRINTF(fmt, args...) \
+	if (!u8500_is_snowball()) printf(fmt, ##args);
 
 static inline int u8500_is_earlydrop(void)
 {

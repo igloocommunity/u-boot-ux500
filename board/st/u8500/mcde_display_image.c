@@ -14,6 +14,7 @@
 #include <mmc.h>
 #include <bmp_layout.h>
 #include <asm/arch/common.h>
+#include <asm/arch/cpu.h>
 #include "mcde.h"
 #include "mcde_display.h"
 
@@ -161,7 +162,7 @@ int mcde_display_image(struct mcde_chnl_state *chnl)
 
 	if (toc_load_toc_entry(&emmc_dev->block_dev, MCDE_TOC_SPLASH_NAME, 0,
 			       0, address)) {
-		printf("mcde_display_image: no splash image found.\n");
+		HREF_PRINTF("mcde_display_image: no splash image found.\n");
 		return -ENOENT;
 	}
 

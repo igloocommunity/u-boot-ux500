@@ -13,6 +13,7 @@
 #include <asm/arch/itp.h>
 #include <asm/arch/cspsa_fp.h>
 #include <asm/arch/sec_bridge.h>
+#include <asm/arch/cpu.h>
 
 #define IPL_ITEM_ID			0x02
 
@@ -70,7 +71,7 @@ static int itp_load_toc_entry(block_dev_desc_t *block_dev,
 
 	if (get_entry_info_toc(block_dev, partname, &offset,
 			       &size, loadaddress)) {
-		printf("itp_load_toc_entry: %s not present\n", partname);
+		HREF_PRINTF("itp_load_toc_entry: %s not present\n", partname);
 		return 1;
 	}
 
@@ -133,7 +134,7 @@ int itp_read_config(block_dev_desc_t *block_dev)
 	if (cspsa_fp_read(block_dev,
 			  ITP_CSPSA_KEY,
 			  &cspsa_key)) {
-		printf("itp_read_config: config not present. "
+		HREF_PRINTF("itp_read_config: config not present. "
 			   "Using default values\n");
 		cspsa_key = (ITP_LOAD_MODEM | ITP_LOAD_KERNEL);
 	}
