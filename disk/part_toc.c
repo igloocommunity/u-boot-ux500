@@ -166,7 +166,7 @@ static toc_entry_t *toc_get_entry_subtoc(toc_entry_t *toc)
 			break;
 	}
 
-	printf("sub TOC not found!\n");
+	HREF_PRINTF("sub TOC not found!\n");
 	return NULL;
 }
 
@@ -549,7 +549,7 @@ int toc_load_toc_entry(block_dev_desc_t *dev_desc, const char *toc_id,
 
 	if (get_entry_info_toc(dev_desc, toc_id, &entry_offset,
 			       &entry_size, &entry_loadaddr)) {
-		printf("toc_load_toc_entry: get_entry_info_toc failed\n");
+		HREF_PRINTF("toc_load_toc_entry: get_entry_info_toc failed\n");
 		return 1;
 	}
 

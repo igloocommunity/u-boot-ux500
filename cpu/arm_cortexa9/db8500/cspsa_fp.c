@@ -12,7 +12,7 @@
  * Safe Parameter Storage.
  *
  */
-
+#include <asm/arch/cpu.h>
 #include <asm/arch/cspsa_fp.h>
 #include <malloc.h>
 #include <part.h>
@@ -177,7 +177,7 @@ static int find_cspsa_area(block_dev_desc_t *block_dev, u32 *start_block,
 
 	if (get_entry_info_toc(block_dev, CSPSA_PARTITION_NAME, &offset,
 			       &size, &loadaddr)) {
-		printf("find_cspsa_area: get_entry_info_toc failed\n");
+		HREF_PRINTF("Find_cspsa_area: get_entry_info_toc failed\n");
 		return 1;
 	}
 	(void) loadaddr;
