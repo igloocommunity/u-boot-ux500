@@ -132,11 +132,11 @@
 		"if run loadbootscript; "				\
 		    "then run bootscript; "				\
 		"else "							\
-		    "if run emmcload; "					\
-		        "then run emmcboot; "				\
+		    "if run mmcload; "					\
+		        "then run mmcboot; "				\
 		    "else "						\
-		        "if run mmcload; "				\
-		            "then run mmcboot; "			\
+		        "if run emmcload; "				\
+		            "then run emmcboot; "			\
 			"else "						\
 			    "echo No media to boot from; "		\
 			"fi; "						\
@@ -155,24 +155,27 @@
 	"memargs512=mem=96M@0 mem_modem=32M@96M hwmem=32M@128M "	\
 		"mem=64M@160M mem_mali=32M@224M "			\
 		"pmem_hwb=128M@256M mem=128M@384M\0"			\
-	"memargs=setenv bootargs ${bootargs} ${memargs512}\0"		\
+	"memargs1024=mem=128M@0 mali.mali_mem=32M@128M "		\
+		"hwmem=168M@M160M mem=48M@328M "			\
+		"mem_issw=1M@383M mem=640M@384M\0"			\
+	"memargs=setenv bootargs ${bootargs} ${memargs1024}\0"		\
 	"emmcload=fat load mmc 0:2 ${loadaddr} /uImage\0"		\
 	"mmcload=fat load mmc 1:1 ${loadaddr} /uImage\0"		\
 	"commonargs=setenv bootargs console=${console} "		\
-		"ip=dhcp\0"						\
+		"ip=dhcp\0 vmalloc=256M"						\
 	"emmcargs=setenv bootargs ${bootargs} "				\
 		"root=/dev/mmcblk0p3 "					\
 		"rootwait\0"						\
 	"addcons=setenv bootargs ${bootargs} "				\
 		"console=${console}\0"					\
 	"emmcboot=echo Booting from eMMC ...; "				\
-		"run commonargs emmcargs; "				\
+		"run commonargs emmcargs memargs; "			\
 		"bootm ${loadaddr}\0"					\
 	"mmcargs=setenv bootargs ${bootargs} "				\
 		"root=/dev/mmcblk1p2 "					\
 		"rootwait\0"						\
 	"mmcboot=echo Booting from external MMC ...; "			\
-		"run commonargs mmcargs; "				\
+		"run commonargs mmcargs memargs; "			\
 		"bootm ${loadaddr}\0"					\
 	"stdout=serial,usbtty\0"					\
 	"stdin=serial,usbtty\0"						\
