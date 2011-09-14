@@ -18,6 +18,7 @@ struct sec_rom_cut_desc {
 };
 
 static const struct sec_rom_cut_desc cuttable[] = {
+	{ 0x9001DBF4, 0x008500B2, 0x90017300 },
 	{ 0x9001DBF4, 0x008500B1, 0x90017300 },
 	{ 0x9001DBF4, 0x008500B0, 0x90017300 },
 	{ 0x9001FFF4, 0x008500A1, 0x90018300 },
