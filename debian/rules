@@ -7,25 +7,33 @@
 # This special exception was added by Craig Small in version 0.37 of dh-make.
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
-
-#%:
-#	dh $@ 
+export DH_VERBOSE=1
 
 #UBOOT_MAKE_ARGS := ARCH=arm CROSS_COMPILE=/usr/bin/arm-linux-gnueabi-
-UBOOT_MAKE_ARGS := ARCH=arm
+#UBOOT_MAKE_ARGS := ARCH=armel
 
-build:
+override_dh_auto_build:
 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
 	$(MAKE) $(UBOOT_MAKE_ARGS)
 
-binary:
-	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
-	$(MAKE) $(UBOOT_MAKE_ARGS)
+%:
+	dh $@ 
 
-binary-arch:
-	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
-	$(MAKE) $(UBOOT_MAKE_ARGS)
+#UBOOT_MAKE_ARGS := ARCH=arm CROSS_COMPILE=/usr/bin/arm-linux-gnueabi-
+#UBOOT_MAKE_ARGS := ARCH=armel
 
-clean:
-	$(MAKE) $(UBOOT_MAKE_ARGS) clean
+# build:
+# 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
+# 	dpkg-gencontrol
+# 	$(MAKE) $(UBOOT_MAKE_ARGS)
+
+# binary:
+# 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
+# 	$(MAKE) $(UBOOT_MAKE_ARGS)
+
+# binary-arch:
+# 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
+# 	$(MAKE) $(UBOOT_MAKE_ARGS)
+
+# clean:
+# 	$(MAKE) $(UBOOT_MAKE_ARGS) clean
