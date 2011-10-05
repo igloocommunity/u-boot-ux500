@@ -16,24 +16,9 @@ override_dh_auto_build:
 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
 	$(MAKE) $(UBOOT_MAKE_ARGS)
 
+#overide_dh_auto_install:
+#	$(MAKE) $(UBOOT_MAKE_ARGS) install
+
 %:
 	dh $@ 
 
-#UBOOT_MAKE_ARGS := ARCH=arm CROSS_COMPILE=/usr/bin/arm-linux-gnueabi-
-#UBOOT_MAKE_ARGS := ARCH=armel
-
-# build:
-# 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
-# 	dpkg-gencontrol
-# 	$(MAKE) $(UBOOT_MAKE_ARGS)
-
-# binary:
-# 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
-# 	$(MAKE) $(UBOOT_MAKE_ARGS)
-
-# binary-arch:
-# 	$(MAKE) $(UBOOT_MAKE_ARGS) u8500_snowball_config
-# 	$(MAKE) $(UBOOT_MAKE_ARGS)
-
-# clean:
-# 	$(MAKE) $(UBOOT_MAKE_ARGS) clean
