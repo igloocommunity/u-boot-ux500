@@ -3795,4 +3795,11 @@ backup:
 	F=`basename $(TOPDIR)` ; cd .. ; \
 	gtar --force-local -zcvf `date "+$$F-%Y-%m-%d-%T.tar.gz"` $$F
 
+# Add an install target for debian/rules to trigger on
+install: u-boot.bin
+	pwd
+	mkdir -p debian/tmp/boot
+	find . -name u-boot.bin
+	cp u-boot.bin debian/tmp/boot
+
 #########################################################################
