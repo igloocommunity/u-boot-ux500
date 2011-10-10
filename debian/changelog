@@ -1,3 +1,9 @@
+u-boot-ux500 (2009.11-3) natty; urgency=low
+
+  * Applied patch to handle 8500B2
+
+ -- Mats Bergstrom <ematsbe@Snowball-Ubuntu>  Mon, 10 Oct 2011 14:15:47 +0200
+
 u-boot-ux500 (2009.11-2) unstable; urgency=low
 
   * Initial Release.
