@@ -147,7 +147,7 @@
 	"verify=n\0"							\
 	"loadaddr=0x00100000\0"						\
 	"console=ttyAMA2,115200n8\0"					\
-	"loadbootscript=fat load mmc 1:1 ${loadaddr} boot.scr\0"	\
+	"loadbootscript=fat load mmc 1:1 ${loadaddr} /boot.scr\0"	\
 	"bootscript=echo Running bootscript "				\
 		"from mmc ...; source ${loadaddr}\0"			\
 	"memargs256=mem=96M@0 mem_modem=32M@96M mem=32M@128M "		\
