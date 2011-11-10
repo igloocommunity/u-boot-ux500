@@ -646,8 +646,11 @@ int board_late_init(void)
 
 			/* setup FSMC for LAN controler */
 			writel(0x305b, 0x80000000);
-			/* the default is too slow */
-			writel(0x01010110, 0x80000004);
+			/*
+			 * the default is too slow
+			 * NOTE: below this some boards corrupt data in SRAM transfers
+			 */
+			writel(0x01010210, 0x80000004);
 		}
 
 		/* enable 3V6 for GBF chip */
