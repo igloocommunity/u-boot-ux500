@@ -1,3 +1,9 @@
+u-boot-ux500 (2009.11-4) unstable; urgency=low
+
+  * Fix for ethernet issues on Snowball PDK's (FSMC timings)
+
+ -- Kalle Vahlman <kalle.vahlman@movial.com>  Thu, 10 Nov 2011 12:01:15 +0200
+
 u-boot-ux500 (2009.11-3) natty; urgency=low
 
   * Applied patch to handle 8500B2
