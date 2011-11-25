@@ -1,3 +1,9 @@
+u-boot-ux500 (2009.11-5) oneiric; urgency=low
+
+  * Remove ip=dhcp from default environment
+
+ -- Kalle Vahlman <kalle.vahlman@movial.com>  Fri, 25 Nov 2011 12:28:22 +0200
+
 u-boot-ux500 (2009.11-4) unstable; urgency=low
 
   * Fix for ethernet issues on Snowball PDK's (FSMC timings)
