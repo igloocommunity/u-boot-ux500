@@ -1,5 +1,5 @@
 Source: u-boot-ux500
-Section: unknown
+Section: misc
 Priority: extra
 Maintainer: Igloo community <packages@igloocommunity.org>
 Build-Depends: debhelper (>= 7.0.50~)
@@ -8,7 +8,7 @@ Homepage: http://www.igloocommunity.org
 
 
 Package: u-boot-ux500
-Architecture: any
+Architecture: armel
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description:  ST-Ericsson Snowball binary u-boot files
  This package contains binary u-boot files for the Snowball developer board from
