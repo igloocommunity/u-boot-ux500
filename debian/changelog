@@ -1,3 +1,9 @@
+u-boot-ux500 (2009.11-6) oneiric; urgency=low
+
+  * Packaging fixes for Launchpad
+
+ -- Kalle Vahlman <kalle.vahlman@movial.com>  Wed, 07 Dec 2011 19:57:07 +0000
+
 u-boot-ux500 (2009.11-5) oneiric; urgency=low
 
   * Remove ip=dhcp from default environment
