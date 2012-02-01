@@ -128,19 +128,23 @@
 
 #undef CONFIG_BOOTARGS
 #define CONFIG_BOOTCOMMAND \
-	"mmc rescan 0; mmc rescan 1; "					\
-		"if run loadbootscript; "				\
-		    "then run bootscript; "				\
-		"else "							\
-		    "if run mmcload; "					\
-		        "then run mmcboot; "				\
-		    "else "						\
-		        "if run emmcload; "				\
-		            "then run emmcboot; "			\
-			"else "						\
-			    "echo No media to boot from; "		\
-			"fi; "						\
-		    "fi; "						\
+	"mmc rescan 0; mmc rescan 1; "						\
+		"if run loadbootscript; "					\
+			"then run bootscript; "					\
+		"else "								\
+			"if run mmcload; "					\
+				"then run mmcboot; "				\
+			"else "							\
+				"if run emmcloadbootscript; "			\
+					"then run bootscript; "			\
+				"else "						\
+					"if run emmcload; "			\
+						"then run emmcboot; "		\
+					"else "					\
+						"echo No media to boot from; "	\
+					"fi; "					\
+				"fi; "						\
+			"fi; "							\
 		"fi; "
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -148,6 +152,7 @@
 	"loadaddr=0x00100000\0"						\
 	"console=ttyAMA2,115200n8\0"					\
 	"loadbootscript=fat load mmc 1:1 ${loadaddr} /boot.scr\0"	\
+	"emmcloadbootscript=fat load mmc 0:2 ${loadaddr} /boot.scr\0"	\
 	"bootscript=echo Running bootscript "				\
 		"from mmc ...; source ${loadaddr}\0"			\
 	"memargs256=mem=96M@0 mem_modem=32M@96M mem=32M@128M "		\
@@ -156,15 +161,15 @@
 		"mem=64M@160M mem_mali=32M@224M "			\
 		"pmem_hwb=128M@256M mem=128M@384M\0"			\
 	"memargs1024=mem=128M@0 mali.mali_mem=32M@128M "		\
-		"hwmem=168M@160M mem=48M@328M "			\
+	"hwmem=168M@160M mem=48M@328M "					\
 		"mem_issw=1M@383M mem=640M@384M\0"			\
 	"memargs=setenv bootargs ${bootargs} ${memargs1024}\0"		\
 	"emmcload=fat load mmc 0:2 ${loadaddr} /uImage\0"		\
 	"mmcload=fat load mmc 1:1 ${loadaddr} /uImage\0"		\
 	"commonargs=setenv bootargs console=${console} "		\
-		"vmalloc=256M\0"				\
+	"vmalloc=256M\0"						\
 	"emmcargs=setenv bootargs ${bootargs} "				\
-		"root=/dev/mmcblk0p3 "					\
+		"root=/dev/mmcblk0p2 "					\
 		"rootwait\0"						\
 	"addcons=setenv bootargs ${bootargs} "				\
 		"console=${console}\0"					\
@@ -186,7 +191,11 @@
  */
 
 #define CONFIG_SYS_LONGHELP			/* undef to save memory     */
+#ifdef CONFIG_SNOWBALL
+#define CONFIG_SYS_PROMPT	"Snowball $ "	/* Snowball Monitor Command Prompt   */
+#else
 #define CONFIG_SYS_PROMPT	"U8500 $ "	/* Monitor Command Prompt   */
+#endif /* CONFIG_SNOWBALL */
 #define CONFIG_SYS_CBSIZE	1024		/* Console I/O Buffer Size  */
 
 /* Print Buffer Size */
