@@ -160,8 +160,8 @@
 	"memargs512=mem=96M@0 mem_modem=32M@96M hwmem=32M@128M "	\
 		"mem=64M@160M mem_mali=32M@224M "			\
 		"pmem_hwb=128M@256M mem=128M@384M\0"			\
-	"memargs1024=mem=128M@0 mali.mali_mem=32M@128M "		\
-	"hwmem=168M@160M mem=48M@328M "					\
+	"memargs1024=mem=128M@0 mali.mali_mem=64M@128M "		\
+	"hwmem=168M@192M mem=22M@360M "					\
 		"mem_issw=1M@383M mem=640M@384M\0"			\
 	"memargs=setenv bootargs ${bootargs} ${memargs1024}\0"		\
 	"emmcload=fat load mmc 0:2 ${loadaddr} /uImage\0"		\
