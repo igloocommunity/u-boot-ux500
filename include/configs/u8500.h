@@ -167,7 +167,7 @@
 	"emmcload=fat load mmc 0:2 ${loadaddr} /uImage\0"		\
 	"mmcload=fat load mmc 1:1 ${loadaddr} /uImage\0"		\
 	"commonargs=setenv bootargs console=${console} "		\
-	"vmalloc=256M\0"						\
+	"vmalloc=300M\0"						\
 	"emmcargs=setenv bootargs ${bootargs} "				\
 		"root=/dev/mmcblk0p2 "					\
 		"rootwait\0"						\
