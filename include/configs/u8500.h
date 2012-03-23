@@ -169,7 +169,7 @@
 	"commonargs=setenv bootargs console=${console} "		\
 	"vmalloc=300M\0"						\
 	"emmcargs=setenv bootargs ${bootargs} "				\
-		"root=/dev/mmcblk0p2 "					\
+		"root=/dev/mmcblk0p3 "					\
 		"rootwait\0"						\
 	"addcons=setenv bootargs ${bootargs} "				\
 		"console=${console}\0"					\
